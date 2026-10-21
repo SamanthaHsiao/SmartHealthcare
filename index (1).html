@@ -1,0 +1,1008 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>一週的診所｜櫃台與提醒</title>
+<style>
+:root{--bg:#f4f7f6;--card:#fff;--ink:#1d2b29;--mute:#6b7d79;--brand:#1f8a70;--warn:#d9534f;--line:#d7e3df;--soft:#eef5f2;--gold:#f0a924}
+[hidden]{display:none!important}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:system-ui,-apple-system,"Noto Sans TC","PingFang TC",sans-serif;color:var(--ink);overflow-x:hidden;-webkit-tap-highlight-color:transparent;
+  background:linear-gradient(120deg,#e4f5ee,#f4f7f6,#e7f0fb);background-size:200% 200%;animation:bgmove 14s ease infinite;min-height:100vh}
+@keyframes bgmove{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+#app{max-width:480px;margin:0 auto;padding:12px 14px 40px}
+h1,h2,h3{margin:.2em 0}
+button{font:inherit;border:0;border-radius:14px;padding:14px 12px;background:var(--brand);color:#fff;cursor:pointer;width:100%;font-size:17px;margin-top:6px;transition:transform .08s}
+button:active{transform:scale(.97)}
+button:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px;margin-bottom:12px;box-shadow:0 3px 0 var(--line)}
+.card.no{background:#fdf3f2;border-color:#f0c4c0}
+.muted{color:var(--mute);font-size:14px}
+.center{text-align:center}
+.row{display:flex;gap:10px;align-items:center}
+.hud{display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--mute);margin-bottom:6px}
+.hud b{color:var(--ink);font-size:18px}
+.stars{color:var(--gold);font-size:20px;letter-spacing:2px;display:inline-block}
+.stars.pulse{animation:pop .5s}
+.pop{animation:pop .45s cubic-bezier(.2,1.6,.4,1)}
+@keyframes pop{0%{transform:scale(.6);opacity:.3}100%{transform:scale(1);opacity:1}}
+.event{display:inline-block;background:#fff3cf;border:1px solid var(--gold);border-radius:999px;padding:6px 12px;font-size:14px;margin-bottom:10px}
+.note{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:8px 10px;font-size:14px;margin:8px 0 12px;min-height:38px}
+.tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:999px;background:var(--soft);color:var(--brand);margin:2px 4px 0 0}
+.tag.warn{background:#fdecea;color:var(--warn)}
+.bubble{display:inline-block;background:#fff;border:2px solid var(--line);border-radius:16px;padding:6px 10px;font-size:14px;margin-top:6px;max-width:100%;position:relative}
+.complaint{background:#fdecea;color:#9b2c27;border:2px solid #f0c4c0;border-radius:16px;padding:8px 10px;font-size:15px;margin-bottom:10px;text-align:center;font-weight:700;animation:pop .35s}
+/* 櫃台 */
+.counter-scene{background:linear-gradient(#dff2ea,#f4f7f6 70%);border-radius:24px;padding:10px;margin-bottom:6px;border:2px solid #bfe0d2}
+.rulebox{background:#2f5d50;color:#fff;border:none;border-radius:16px;box-shadow:0 5px 0 #1d3f36;padding:10px 12px;text-align:center;margin-bottom:12px}
+.rulebox .muted{color:#bfe0d6}
+.rule{font-size:23px;font-weight:800;margin:4px 0 6px;animation:pop .4s}
+.rule.still{animation:none}
+.jump{background:#fff6dc;border:2px solid #f0c24b;border-radius:14px;padding:8px 10px;margin-bottom:8px;text-align:center;font-size:15px;animation:pop .35s}
+.jump .btns{margin-top:6px}
+.emg{background:#d9534f;color:#fff;border-radius:10px;padding:4px 8px;font-weight:800;text-align:center;margin-bottom:6px;animation:pop .4s}
+.pills{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+.pill{font-size:12px;padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.18);color:#e6f4ef}
+.pill.on{background:#fff;color:#2f5d50;font-weight:700}
+.pcard{border:2px solid #cfe3dc;box-shadow:0 4px 0 #cfe3dc;background:linear-gradient(#fffdf6,#fff);border-radius:20px;padding:12px;min-height:170px}
+.pcard.arrive{animation:arrive .45s cubic-bezier(.2,1.4,.4,1)}
+@keyframes arrive{from{transform:translateY(-14px) scale(.96);opacity:0}to{transform:none;opacity:1}}
+.fields{display:flex;flex-direction:column;gap:4px;margin-top:6px;font-size:16px}
+.fields span{padding:2px 8px;border-radius:10px;background:#f3f8f6;width:fit-content}
+.bar{height:12px;background:var(--line);border-radius:8px;overflow:hidden;margin-top:12px}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,#1f8a70,#5cc4a0);border-radius:8px}
+.bar i.low{background:linear-gradient(90deg,#d9534f,#f0a924)}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.btns button{font-size:22px;padding:22px 8px;box-shadow:0 5px 0 rgba(0,0,0,.18)}
+.btns button:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.18)}
+.btns .deny{background:var(--warn)}
+.queue{display:flex;align-items:flex-end;gap:2px;margin-top:12px;min-height:44px}
+.qp{display:inline-block}
+.av{display:block;overflow:visible}
+.av.sm{width:56px;height:77px}
+.av.xs{width:34px;height:47px}
+.staffrow{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.staffrow .bubble{font-size:14px;margin-top:0}
+.walk .av{animation:bob .6s ease-in-out infinite alternate}
+.walk .swing-l{animation:swingL .6s ease-in-out infinite alternate}
+.walk .swing-r{animation:swingR .6s ease-in-out infinite alternate}
+.swing-l,.swing-r{transform-box:view-box}
+@keyframes bob{to{transform:translateY(-3px)}}
+@keyframes swingL{to{transform:rotate(-20deg)}}
+@keyframes swingR{to{transform:rotate(20deg)}}
+.happy-bounce .av{animation:hop .6s ease-in-out 2}
+@keyframes hop{50%{transform:translateY(-8px)}}
+/* 提醒 */
+.odds{font-size:13px;color:var(--mute);margin-top:6px}
+.seg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:8px}
+.seg button{background:#fff;color:var(--ink);border:2px solid var(--line);font-size:14px;padding:10px 4px;margin:0}
+.seg button.on{background:var(--soft);border-color:var(--brand);color:var(--brand);font-weight:700}
+.seg small{display:block;font-size:11px;color:var(--mute);margin-top:2px}
+.seg button.on small{color:var(--brand)}
+/* 升級 */
+.up{display:block;text-align:left;background:#fff;color:var(--ink);border:2px solid var(--brand);border-radius:18px;padding:14px;margin-bottom:10px;font-size:18px;font-weight:700;box-shadow:0 4px 0 var(--brand)}
+.up small{display:block;color:var(--mute);font-size:14px;margin-top:4px;font-weight:normal}
+.up:active{transform:translateY(3px);box-shadow:0 1px 0 var(--brand)}
+/* 特效 */
+.fx-ok{animation:okp .8s ease-out}
+@keyframes okp{0%{box-shadow:0 0 0 0 rgba(31,138,112,.7)}100%{box-shadow:0 0 0 18px rgba(31,138,112,0)}}
+.fx-bad{animation:shake .45s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+.float{position:fixed;pointer-events:none;font-weight:800;font-size:24px;animation:floatup 1.2s ease-out forwards;z-index:50;text-shadow:0 2px 0 #fff}
+@keyframes floatup{to{transform:translateY(-60px);opacity:0}}
+.stamp{position:fixed;left:50%;top:40%;font-size:46px;font-weight:900;border:5px solid;padding:6px 18px;border-radius:14px;z-index:70;pointer-events:none;background:rgba(255,255,255,.8);transform:translate(-50%,-50%) rotate(-12deg);animation:stampin .7s ease-out forwards}
+.stamp.ok{color:var(--brand);border-color:var(--brand)}
+.stamp.bad{color:var(--warn);border-color:var(--warn)}
+@keyframes stampin{0%{transform:translate(-50%,-50%) scale(2.2) rotate(-12deg);opacity:0}30%{opacity:1}100%{transform:translate(-50%,-50%) scale(1) rotate(-12deg);opacity:0}}
+.burst{position:fixed;left:50%;top:22%;transform:translateX(-50%);font-size:30px;font-weight:900;color:#fff;background:linear-gradient(90deg,#f0a924,#e0557a,#7b5cd6);padding:10px 22px;border-radius:999px;z-index:75;white-space:nowrap;pointer-events:none;animation:burstin 1.1s ease-out forwards;box-shadow:0 6px 0 rgba(0,0,0,.15)}
+@keyframes burstin{0%{transform:translateX(-50%) scale(.3);opacity:0}20%{transform:translateX(-50%) scale(1.15);opacity:1}30%{transform:translateX(-50%) scale(1)}80%{opacity:1}100%{transform:translateX(-50%) translateY(-20px);opacity:0}}
+.conf{position:fixed;top:-20px;width:9px;height:13px;z-index:60;animation:fall 2.6s linear forwards;border-radius:2px}
+@keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
+.ghost-p{position:fixed;z-index:45;pointer-events:none;display:flex;flex-direction:column;align-items:center;animation:outR .9s ease-in forwards}
+.ghost-p.gl{animation-name:outL}
+.ghost-p .gbubble{background:#fff;border:2px solid var(--line);border-radius:14px;padding:4px 10px;font-size:14px;white-space:nowrap;margin-bottom:4px;font-weight:700}
+@keyframes outR{0%{transform:none;opacity:1}100%{transform:translateX(160px) rotate(8deg);opacity:0}}
+@keyframes outL{0%{transform:none;opacity:1}30%{transform:translateX(-10px)}100%{transform:translateX(-170px) rotate(-6deg);opacity:0}}
+.mute{position:fixed;top:8px;right:8px;width:auto;margin:0;padding:6px 12px;font-size:18px;background:#fff;color:var(--ink);border:2px solid var(--line);border-radius:999px;z-index:80}
+.marquee{display:flex;gap:18px;justify-content:center;align-items:flex-end;margin:6px 0 14px}
+</style>
+</head>
+<body>
+<button id="mute" class="mute" data-act="sound">🔊</button>
+<div id="app"></div>
+
+<script>
+/* ================= 設定 ================= */
+const DEPTS = ['內科', '小兒科', '牙科'];
+const PERIODS = ['上午', '下午'];
+const AGES = ['兒童', '成人', '長者'];
+const VISITS = ['初診', '複診'];
+const NAMES = ['王小明','陳美玲','林志豪','黃雅婷','張家豪','李佩珊','吳承恩','蔡怡君','劉建宏','周淑芬','許哲瑋','鄭宜庭'];
+const PALETTE = ['#f0a04b','#4b9ce2','#e07a9b','#7bc47f','#9b8ee0','#e8c547'];
+const HAIRS = ['#3a2a20','#1f1f1f','#8a5a2b','#c0392b','#6d4c41'];
+const LINES = [
+  '我昨天就想來了。', '帶小孩來看病，好累。', '只是想拿個藥而已。',
+  '拜託快一點，我還要上班。', '我有點怕看牙……', '醫生說要回來複診。',
+  '我已經排很久了。', '等一下要去接小孩。', '我想換個時間來。'
+];
+const THANKS = ['謝謝你！', '太好了！', '辛苦你了～', '謝啦！'];
+const OKAY = ['好吧……', '那我改天再來。', '知道了。'];
+const RULE_NAME = {dept:'科別', period:'掛號時段', age:'年齡層', visit:'就診類型'};
+const PHASE_NAME = {counter:'櫃台', remind:'提醒', reveal:'結果', dayend:'今天結束', upgrade:'選擇升級'};
+
+// pool：可出現的條件；size：同時要符合幾條；switchMs：多久換一組；jump：插隊機率
+// noshow：今天的爽約規則（符合的病人容易爽約）；emergency：急診機率
+const DAY_CFG = [
+  {pool:['dept','period'], size:2, switchMs:8000, jump:0.15, counterMs:35000, spawnMs:3000, credits:4, risk:0.30, emergency:0,
+   event:'第一天：科別＋掛號時段要「同時」符合。前三位不插隊。'},
+  {pool:['dept','period','age'], size:3, switchMs:9000, jump:0, counterMs:40000, spawnMs:3000, credits:3, emergency:0.08,
+   noshow:{age:'長者'},
+   event:'第二天：三條件同時符合。爽約規則：長者容易爽約。偶爾有急診，要立刻放行。'},
+  {pool:['dept','period','age','visit'], size:3, switchMs:7000, jump:0.2, announce:true, counterMs:45000, spawnMs:2500, credits:3, emergency:0.12,
+   noshow:{visit:'初診'},
+   event:'第三天：條件隨機組合。爽約規則：初診病人容易爽約。有插隊、公告，也有急診。'}
+];
+const DAYS = ['星期一','星期二','星期三'];
+const RULE_SWITCH_MS = 5000;
+const PATIENCE_MS = 6000;
+const MAX_QUEUE = 4;
+const REMIND_MS = 15000;
+const REVEAL_MS = 7000;
+const COMPLAINT_MS = 2500;
+const MAX_STARS = 5;
+const REMIND_OPTS = [
+  {key:'none', label:'不發', cost:0, factor:1},
+  {key:'night', label:'前一晚', cost:1, factor:0.6},
+  {key:'morning', label:'當天早上', cost:2, factor:0.35}
+];
+// 每天結束後可以選的升級（隨機抽三個）
+const UPGRADES = [
+  {name:'加派一位櫃檯', desc:'來客速度變慢 20%', apply(){ G.spawnFactor *= 1.25; }},
+  {name:'提醒額度 +1', desc:'之後每天多一點提醒額度', apply(){ G.creditBonus += 1; }},
+  {name:'快速叫號', desc:'病人願意多等 2 秒', apply(){ G.patienceBonus += 2000; }},
+  {name:'評價修復', desc:'診所評價立即 +2 星', apply(){ G.stars = Math.min(MAX_STARS, G.stars + 2); }},
+  {name:'連擊保險', desc:'下一次判斷錯誤不會打斷連擊', apply(){ G.comboShield += 1; }}
+];
+
+/* ================= 共用工具 ================= */
+const $ = (s) => document.querySelector(s);
+const pick = (a) => a[Math.floor(Math.random() * a.length)];
+const shuffle = (a) => a.map(v => [Math.random(), v]).sort((x, y) => x[0] - y[0]).map(x => x[1]);
+const uid = () => Math.random().toString(36).slice(2, 9);
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const pct = (x) => Math.round(x * 100) + '%';
+const stars = (n) => '★'.repeat(n) + '☆'.repeat(MAX_STARS - n);
+function escapeHTML(s) {
+  return String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+}
+
+function avatarLegacy(p, mood = 'neutral', cls = '') {
+  const mouth = {
+    happy: 'M24 33 Q30 40 36 33', sad: 'M24 38 Q30 32 36 38',
+    worried: 'M25 37 Q30 34 35 37', neutral: 'M25 35 L35 35'
+  }[mood] || 'M25 35 L35 35';
+  const brow = (mood === 'worried' || mood === 'sad')
+    ? '<path d="M21 22 L26 24 M39 22 L34 24" stroke="#2b2b2b" stroke-width="1.6" stroke-linecap="round"/>' : '';
+  const c = p.color || '#999';
+  return `<svg class="av ${cls}" viewBox="0 0 60 90" width="60" height="90">
+    <rect class="swing-l" x="10" y="46" width="8" height="22" rx="4" fill="${c}"/>
+    <rect class="swing-r" x="42" y="46" width="8" height="22" rx="4" fill="${c}"/>
+    <rect x="18" y="44" width="24" height="30" rx="10" fill="${c}"/>
+    <rect x="20" y="72" width="8" height="16" rx="3" fill="#44505c"/>
+    <rect x="32" y="72" width="8" height="16" rx="3" fill="#44505c"/>
+    <circle cx="30" cy="28" r="16" fill="#f5d0b0"/>
+    <path d="M14 26 Q30 2 46 26 Q40 14 30 14 Q20 14 14 26Z" fill="${p.hair || '#3a2a20'}"/>
+    <circle cx="24" cy="27" r="2.2" fill="#2b2b2b"/>
+    <circle cx="36" cy="27" r="2.2" fill="#2b2b2b"/>
+    ${brow}
+    <path d="${mouth}" stroke="#2b2b2b" stroke-width="2" fill="none" stroke-linecap="round"/>
+  </svg>`;
+}
+
+/* ================= 角色（v9：年齡、髮型、配件、表情） ================= */
+const STAFF = {role:'staff', color:'#1f8a70', hair:'#3a2a20', hairStyle:'bun', age:'成人', visit:'複診'};
+function avatar(p, mood = 'neutral', cls = '') {
+  const isStaff = p.role === 'staff';
+  const child = !isStaff && p.age === '兒童';
+  const elder = !isStaff && p.age === '長者';
+  const skin = '#f5d0b0', ink = '#2b2b2b', c = p.color || '#999';
+  const hair = elder ? '#d9d9d9' : (p.hair || '#3a2a20');
+  const style = p.hairStyle || 'short';
+  const cx = 40, hr = child ? 19 : 16.5, cy = child ? 38 : 32;
+  const bodyTop = child ? 58 : 50, bodyH = child ? 26 : 32, bodyW = child ? 24 : 28;
+  const bw = bodyW / 2, legTop = bodyTop + bodyH - 2, legH = child ? 16 : 22;
+  const armY = bodyTop + 4, armH = bodyH - 8;
+  const ex = 6, ey = cy + 1;
+  const handL = [cx - bw - 1.5, armY + armH + 2], handR = [cx + bw + 1.5, armY + armH + 2];
+  const stroke = (d, w = 2) => `<path d="${d}" stroke="${ink}" stroke-width="${w}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+  const dots = (r) => `<circle cx="${cx - ex}" cy="${ey}" r="${r}" fill="${ink}"/><circle cx="${cx + ex}" cy="${ey}" r="${r}" fill="${ink}"/>`;
+
+  // 腿
+  const legs = `<rect x="${cx - bw + 4}" y="${legTop}" width="7" height="${legH}" rx="3.5" fill="#44505c"/>
+    <rect x="${cx + bw - 11}" y="${legTop}" width="7" height="${legH}" rx="3.5" fill="#44505c"/>
+    <ellipse cx="${cx - bw + 7.5}" cy="${legTop + legH}" rx="5" ry="2.6" fill="${ink}"/>
+    <ellipse cx="${cx + bw - 7.5}" cy="${legTop + legH}" rx="5" ry="2.6" fill="${ink}"/>`;
+
+  // 身體（櫃台人員穿白袍）
+  const torso = isStaff
+    ? `<rect x="${cx - bw}" y="${bodyTop}" width="${bodyW}" height="${bodyH}" rx="10" fill="#fff" stroke="${c}" stroke-width="2"/>
+       <rect x="${cx - 2.5}" y="${bodyTop + 2}" width="5" height="${bodyH - 4}" fill="${c}" opacity=".3"/>
+       <rect x="${cx + 2}" y="${bodyTop + 7}" width="9" height="6" rx="1.5" fill="${c}"/>`
+    : `<rect x="${cx - bw}" y="${bodyTop}" width="${bodyW}" height="${bodyH}" rx="10" fill="${c}"/>
+       <path d="M${cx - 5} ${bodyTop} L${cx} ${bodyTop + 7} L${cx + 5} ${bodyTop}" fill="#fff" opacity=".85"/>`;
+
+  // 手臂與手
+  const armFill = isStaff ? '#fff' : c;
+  const armStroke = isStaff ? `stroke="${c}" stroke-width="1.5"` : '';
+  const arms = `<rect x="${cx - bw - 5}" y="${armY}" width="7" height="${armH}" rx="3.5" fill="${armFill}" ${armStroke}/>
+    <rect x="${cx + bw - 2}" y="${armY}" width="7" height="${armH}" rx="3.5" fill="${armFill}" ${armStroke}/>
+    <circle cx="${handL[0]}" cy="${handL[1]}" r="3.5" fill="${skin}"/>
+    <circle cx="${handR[0]}" cy="${handR[1]}" r="3.5" fill="${skin}"/>`;
+
+  // 配件：小孩拿棒棒糖、長者拿拐杖、初診病人拿病歷夾
+  let acc = '';
+  if (child) {
+    acc = `<line x1="${handR[0]}" y1="${handR[1]}" x2="${handR[0] + 4}" y2="${handR[1] - 16}" stroke="#8a5a2b" stroke-width="1.8"/>
+      <circle cx="${handR[0] + 4}" cy="${handR[1] - 19}" r="5" fill="#ff6f91" stroke="#fff" stroke-width="1.5"/>`;
+  } else if (elder) {
+    acc = `<line x1="${handR[0]}" y1="${handR[1]}" x2="${handR[0]}" y2="${legTop + legH}" stroke="#8a5a2b" stroke-width="2.4" stroke-linecap="round"/>`;
+  } else if (!isStaff && p.visit === '初診') {
+    acc = `<rect x="${cx - bw - 14}" y="${armY + 7}" width="12" height="15" rx="2" fill="#fff" stroke="#8a7f6b" stroke-width="1.4"/>
+      <line x1="${cx - bw - 11}" y1="${armY + 12}" x2="${cx - bw - 5}" y2="${armY + 12}" stroke="#b9b09b" stroke-width="1.2"/>
+      <line x1="${cx - bw - 11}" y1="${armY + 16}" x2="${cx - bw - 5}" y2="${armY + 16}" stroke="#b9b09b" stroke-width="1.2"/>`;
+  }
+
+  // 後面的頭髮
+  let hairBack = '';
+  if (style === 'long') hairBack = `<rect x="${cx - hr - 3}" y="${cy - 4}" width="${2 * hr + 6}" height="24" rx="9" fill="${hair}"/>`;
+  else if (style === 'bun') hairBack = `<ellipse cx="${cx}" cy="${cy - 3}" rx="${hr + 1}" ry="${hr}" fill="${hair}"/><circle cx="${cx}" cy="${cy - hr - 3}" r="6.5" fill="${hair}"/>`;
+  else if (style === 'curly') hairBack = [[-14, -9], [0, -17], [14, -9], [-16, 3], [16, 3]].map(([dx, dy]) => `<circle cx="${cx + dx}" cy="${cy + dy}" r="7" fill="${hair}"/>`).join('');
+  else hairBack = `<ellipse cx="${cx}" cy="${cy - 3}" rx="${hr + 1}" ry="${hr}" fill="${hair}"/>`;
+
+  // 瀏海（蓋在臉上方）
+  const fringe = style === 'curly' ? '' :
+    `<path d="M${cx - hr} ${cy - 2} Q${cx - hr + 3} ${cy - hr - 2} ${cx} ${cy - hr + 3} Q${cx + hr - 3} ${cy - hr - 2} ${cx + hr} ${cy - 2} Q${cx + hr - 7} ${cy - hr + 7} ${cx} ${cy - hr + 7} Q${cx - hr + 7} ${cy - hr + 7} ${cx - hr} ${cy - 2}Z" fill="${hair}"/>`;
+
+  const ears = `<circle cx="${cx - hr}" cy="${cy + 2}" r="3" fill="${skin}"/><circle cx="${cx + hr}" cy="${cy + 2}" r="3" fill="${skin}"/>`;
+  const face = `<circle cx="${cx}" cy="${cy}" r="${hr}" fill="${skin}"/>`;
+
+  // 表情
+  let eyes = dots(2.1), brows = '', mouth = '', extra = '', blush = '';
+  switch (mood) {
+    case 'happy':
+      eyes = stroke(`M${cx - ex - 2.5} ${ey} q2.5 -3 5 0 M${cx + ex - 2.5} ${ey} q2.5 -3 5 0`);
+      mouth = `<path d="M${cx - 5} ${cy + 7} Q${cx} ${cy + 14} ${cx + 5} ${cy + 7} Z" fill="#c0504d" stroke="${ink}" stroke-width="1.5" stroke-linejoin="round"/>`;
+      blush = `<circle cx="${cx - 10}" cy="${cy + 5}" r="3" fill="#ff8fa3" opacity=".5"/><circle cx="${cx + 10}" cy="${cy + 5}" r="3" fill="#ff8fa3" opacity=".5"/>`;
+      break;
+    case 'worried':
+      brows = stroke(`M${cx - ex - 3} ${ey - 4} L${cx - ex + 3} ${ey - 6} M${cx + ex + 3} ${ey - 4} L${cx + ex - 3} ${ey - 6}`, 1.8);
+      mouth = stroke(`M${cx - 5} ${cy + 9} q2.5 -2.5 5 0 t5 0`, 1.8);
+      extra = `<path d="M${cx + hr - 1} ${cy - 6} q3 5 0 7 q-3 -2 0 -7z" fill="#8fd3ff"/>`;
+      break;
+    case 'sad':
+      brows = stroke(`M${cx - ex - 3} ${ey - 4} L${cx - ex + 3} ${ey - 6} M${cx + ex + 3} ${ey - 4} L${cx + ex - 3} ${ey - 6}`, 1.8);
+      mouth = stroke(`M${cx - 5} ${cy + 11} Q${cx} ${cy + 7} ${cx + 5} ${cy + 11}`, 1.8);
+      extra = `<path d="M${cx - ex} ${ey + 3} q-2 4 0 5 q2 -1 0 -5z" fill="#8fd3ff"/>`;
+      break;
+    case 'angry':
+      brows = stroke(`M${cx - ex - 3} ${ey - 6} L${cx - ex + 3} ${ey - 3} M${cx + ex + 3} ${ey - 6} L${cx + ex - 3} ${ey - 3}`, 2.2);
+      eyes = dots(1.8);
+      mouth = stroke(`M${cx - 5} ${cy + 11} Q${cx} ${cy + 7} ${cx + 5} ${cy + 11}`, 2);
+      extra = `<path d="M${cx + hr - 3} ${cy - hr + 6} l3 -3 M${cx + hr} ${cy - hr + 10} l3 -1 M${cx + hr - 4} ${cy - hr + 2} l1 -4" stroke="#d9534f" stroke-width="1.8" stroke-linecap="round"/>`;
+      break;
+    case 'impatient':
+      eyes = stroke(`M${cx - ex - 2.5} ${ey} h5 M${cx + ex - 2.5} ${ey} h5`, 2.2);
+      brows = stroke(`M${cx - ex - 3} ${ey - 5} h6 M${cx + ex - 3} ${ey - 5} h6`, 1.8);
+      mouth = stroke(`M${cx - 4} ${cy + 9} l8 -1`, 2);
+      extra = `<text x="${cx + hr - 3}" y="${cy - hr + 2}" font-size="9" font-weight="700" fill="#6b7d79">…</text>`;
+      break;
+    default:
+      mouth = stroke(`M${cx - 4} ${cy + 9} h8`, 2);
+  }
+
+  // 眼鏡（長者與櫃台人員）
+  const glasses = (elder || isStaff)
+    ? `<circle cx="${cx - ex}" cy="${ey}" r="4.4" fill="none" stroke="#555" stroke-width="1.3"/>
+       <circle cx="${cx + ex}" cy="${ey}" r="4.4" fill="none" stroke="#555" stroke-width="1.3"/>
+       <line x1="${cx - ex + 4.4}" y1="${ey}" x2="${cx + ex - 4.4}" y2="${ey}" stroke="#555" stroke-width="1.2"/>`
+    : '';
+
+  // 口罩（流感季）
+  const mask = p.mask
+    ? `<path d="M${cx - 8} ${cy + 5} Q${cx} ${cy + 9} ${cx + 8} ${cy + 5} L${cx + 7} ${cy + 13} Q${cx} ${cy + 16} ${cx - 7} ${cy + 13} Z" fill="#cdeefc" stroke="#8fc9e6" stroke-width="1"/>`
+    : '';
+
+  return `<svg class="av ${cls}" viewBox="0 0 80 110" width="72" height="99" aria-hidden="true">
+    <ellipse cx="40" cy="106" rx="22" ry="3.5" fill="rgba(0,0,0,.12)"/>
+    ${legs}${torso}${arms}${acc}
+    ${hairBack}${ears}${face}${blush}${eyes}${brows}${glasses}${mouth}${mask}${fringe}${extra}
+  </svg>`;
+}
+
+/* ================= 音效（用瀏覽器內建的合成音，不需要檔案） ================= */
+let AC = null;
+let soundOn = (() => { try { return localStorage.getItem('clinic-sound') !== 'off'; } catch (e) { return true; } })();
+function audio() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
+  if (AC && AC.state === 'suspended') AC.resume();
+  return AC;
+}
+function tone(freq, dur = 0.12, type = 'triangle', vol = 0.14, when = 0) {
+  if (!soundOn) return;
+  const ac = audio(); if (!ac) return;
+  const t0 = ac.currentTime + when;
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t0);
+  g.gain.setValueAtTime(vol, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(ac.destination);
+  o.start(t0); o.stop(t0 + dur + 0.02);
+}
+const SFX = {
+  ok() { tone(784, 0.16, 'sine', 0.09); tone(1046, 0.2, 'sine', 0.07, 0.07); },
+  bad() { tone(220, 0.2, 'sawtooth', 0.08); tone(165, 0.25, 'sawtooth', 0.08, 0.12); },
+  combo(n) {
+    const base = 392 * Math.pow(2, (Math.min(n, 16) % 12) / 12);
+    [0, 4, 7, 12, 16].forEach((s, i) => tone(base * Math.pow(2, s / 12), 0.18, 'square', 0.06, i * 0.06));
+  },
+  star() { tone(988, 0.12); tone(1319, 0.2, 'triangle', 0.14, 0.1); },
+  leave() { tone(330, 0.15, 'triangle', 0.1); tone(262, 0.25, 'triangle', 0.1, 0.12); },
+  reveal() { tone(523, 0.1); },
+  upgrade() { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.16, 'triangle', 0.12, i * 0.08)); },
+  win() { [523, 659, 784, 1046, 784, 1046].forEach((f, i) => tone(f, 0.2, 'triangle', 0.14, i * 0.1)); },
+  lose() { [392, 330, 262, 196].forEach((f, i) => tone(f, 0.25, 'triangle', 0.12, i * 0.15)); }
+};
+function sfx(name, ...a) { try { SFX[name](...a); } catch (e) {} }
+function toggleSound() {
+  soundOn = !soundOn;
+  try { localStorage.setItem('clinic-sound', soundOn ? 'on' : 'off'); } catch (e) {}
+  $('#mute').textContent = soundOn ? '🔊' : '🔇';
+  if (soundOn) sfx('reveal');
+}
+
+/* ================= 排行榜（本機） ================= */
+const LB_KEY = 'clinic-leaderboard';
+function loadLB() {
+  try { return JSON.parse(localStorage.getItem(LB_KEY) || '[]'); }
+  catch (e) { return []; }
+}
+function saveLB(list) {
+  try { localStorage.setItem(LB_KEY, JSON.stringify(list)); } catch (e) {}
+}
+function leaderboardHTML() {
+  const list = loadLB();
+  if (!list.length) return '<p class="muted center">排行榜還是空的，來挑戰第一名吧！</p>';
+  return `<div class="card"><h3>🏆 排行榜（本機前 5 名）</h3>
+    <ol style="padding-left:22px;margin:6px 0;line-height:1.8">
+      ${list.slice(0, 5).map(x => `<li>${escapeHTML(x.name)}：<b>${x.score}</b> 分</li>`).join('')}
+    </ol></div>`;
+}
+function leaderboardFormHTML() {
+  if (G.saved) return '<p class="muted center">已記錄到排行榜</p>' + leaderboardHTML();
+  return `<div class="card"><h3>記錄到排行榜</h3>
+    <input id="pname" maxlength="8" placeholder="輸入名字"
+      style="width:100%;font:inherit;padding:12px;border-radius:12px;border:2px solid var(--line)">
+    <button data-act="savescore">記錄</button></div>`;
+}
+function saveScore() {
+  const input = $('#pname');
+  const name = ((input && input.value) || '').trim().slice(0, 8) || '玩家';
+  const list = loadLB();
+  list.push({name, score: G.score});
+  list.sort((a, b) => b.score - a.score);
+  saveLB(list.slice(0, 5));
+  G.saved = true;
+  render();
+}
+
+/* ================= 遊戲狀態 ================= */
+let G = null;
+let fxQ = [];
+let seenIds = new Set();
+
+function newGame() {
+  G = {
+    phase: 'intro', day: 0, t: 0,
+    rules: [], ruleIdx: 0, open: {}, ruleAcc: 0, spawnAcc: 0,
+    queue: [], front: null, booked: [],
+    credits: 0, combo: 0, score: 0, stars: MAX_STARS,
+    note: '', complaint: null, complaintUntil: 0,
+    grade: '', rate: 0, accuracy: 0, saved: false,
+    spawnFactor: 1, creditBonus: 0, patienceBonus: 0, maxPatience: PATIENCE_MS, comboShield: 0,
+    upgradeChoices: [], lastUpgrade: '',
+    staffMood: 'neutral', staffLine: '今天也要順順的！', staffUntil: 0,
+    stats: {total: 0, correct: 0, wrong: 0, timeout: 0, booked: 0, arrived: 0, noshow: 0}
+  };
+  seenIds = new Set();
+  render();
+}
+
+function cfg() { return DAY_CFG[G.day]; }
+function others(arr, v) { return arr.filter(x => x !== v); }
+function noshowHit(p) { return Object.entries(G.noshow || {}).every(([k, v]) => fieldOf(p, k) === v); }
+function rangeOf(r) {
+  if (r === 'dept') return DEPTS;
+  if (r === 'period') return PERIODS;
+  if (r === 'age') return AGES;
+  return VISITS;
+}
+function fieldOf(p, r) {
+  if (r === 'dept') return p.dept;
+  if (r === 'period') return p.period;
+  if (r === 'age') return p.age;
+  return p.visit;
+}
+function matchesAll(p) { return G.rules.every(r => fieldOf(p, r) === G.open[r]); }
+function ruleText() { return G.rules.map(r => `${RULE_NAME[r]}「${G.open[r]}」`).join(' ＋ '); }
+
+function flashQ(key, kind, text = '') { fxQ.push({key, kind, text}); }
+
+function setComplaint(text) {
+  G.complaint = text;
+  G.complaintUntil = Date.now() + COMPLAINT_MS;
+}
+
+/* 櫃台人員的表情與台詞 */
+function setStaff(correct, pass) {
+  G.staffMood = correct ? 'happy' : 'worried';
+  G.staffUntil = Date.now() + 1200;
+  G.staffLine = correct
+    ? pick(pass ? ['好，請到那邊等。', '謝謝，下一位！'] : ['好，請慢走。', '下一位請。'])
+    : pick(['唉，再看一次條件。', '不對喔…注意一下！']);
+}
+
+/* 蓋章、連擊爆發、五彩紙屑 */
+function stamp(text, ok) {
+  const d = document.createElement('div');
+  d.className = 'stamp ' + (ok ? 'ok' : 'bad');
+  d.textContent = text;
+  document.body.appendChild(d);
+  setTimeout(() => d.remove(), 750);
+}
+function confetti(n) {
+  const cols = ['#1f8a70', '#f0a924', '#e0557a', '#3b82f6', '#7b5cd6'];
+  for (let i = 0; i < n; i++) {
+    const d = document.createElement('div');
+    d.className = 'conf';
+    d.style.left = (Math.random() * 100) + 'vw';
+    d.style.background = pick(cols);
+    d.style.animationDelay = (Math.random() * 0.5) + 's';
+    document.body.appendChild(d);
+    setTimeout(() => d.remove(), 4000);
+  }
+}
+function comboBurst(n) {
+  const d = document.createElement('div');
+  d.className = 'burst';
+  d.textContent = n >= 12 ? `🔥 連擊 ×${n}！神級櫃台` : n >= 8 ? `⚡ 連擊 ×${n}！超強` : `✨ 連擊 ×${n}！`;
+  document.body.appendChild(d);
+  setTimeout(() => d.remove(), 1100);
+  confetti(n >= 8 ? 40 : 22);
+  sfx('combo', n);
+}
+
+/* 病人離開櫃台的動畫（開心往右走、生氣往左走） */
+function ghostLeave(p, mood, dir, text) {
+  const el = document.querySelector('[data-key="front"]');
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  const d = document.createElement('div');
+  d.className = 'ghost-p' + (dir === 'left' ? ' gl' : '');
+  d.style.left = (r.left + r.width / 2 - 40) + 'px';
+  d.style.top = (r.top + 10) + 'px';
+  d.innerHTML = `<div class="gbubble">${escapeHTML(text)}</div>${avatar(p, mood, 'sm')}`;
+  document.body.appendChild(d);
+  setTimeout(() => d.remove(), 950);
+}
+
+/* 產生一位病人；一半機率符合目前的規則 */
+function newPatient() {
+  // 一半機率符合所有條件；不符合時只讓其中一條不對，比較公平
+  const fit = Math.random() < 0.5;
+  const history = Math.random() < 0.4;
+  const p = {
+    id: uid(), name: pick(NAMES), line: pick(LINES),
+    dept: pick(DEPTS), period: pick(PERIODS), age: pick(AGES), visit: pick(VISITS),
+    risk: 0, history, color: pick(PALETTE), hair: pick(HAIRS),
+    patience: G.maxPatience, remind: 'none', arrived: null
+  };
+  for (const r of G.rules) p[r] = G.open[r];
+  if (!fit) { const bad = pick(G.rules); p[bad] = pick(others(rangeOf(bad), G.open[bad])); }
+  // 沒來機率：有爽約規則的關卡，符合規則的人高很多（看得到原因，不是純隨機）
+  if (cfg().noshow) {
+    p.ruleHit = noshowHit(p);
+    p.risk = clamp((p.ruleHit ? 0.65 : 0.12) + (Math.random() * 0.06 - 0.03), 0.05, 0.85);
+  } else {
+    p.risk = clamp(cfg().risk + (history ? 0.12 : 0) + (Math.random() * 0.04 - 0.02), 0.05, 0.85);
+  }
+  // 急診：不用預約，要立刻放行
+  if (Math.random() < (cfg().emergency || 0)) { p.emergency = true; p.patience = 4000; p.risk = 0; }
+  p.hairStyle = p.age === '長者' ? 'grey' : p.age === '兒童' ? pick(['curly', 'bun', 'short']) : pick(['short', 'long', 'bun']);
+  p.mask = G.day === 2 && Math.random() < 0.5;
+  G.stats.total++;
+  return p;
+}
+function spawn() {
+  const p = newPatient();
+  if (!G.front) G.front = p; else G.queue.push(p);
+}
+
+/* 插隊：有人說很急，玩家決定讓不讓他先進 */
+function makeJumper() {
+  G.jumper = newPatient(); G.jumperLeft = 4500;
+}
+function acceptJumper() {
+  const j = G.jumper; if (!j) return;
+  G.jumper = null;
+  if (G.front) G.queue.unshift(G.front);
+  G.front = j; j.patience = G.maxPatience;
+  // 排隊的人會因為被插隊而少一點耐心
+  G.queue.forEach(q => { q.patience = Math.max(1500, q.patience - 2000); });
+  G.stats.jumped = (G.stats.jumped || 0) + 1;
+  G.note = `${j.name} 插隊進來，後面的人多等了一點`;
+  render();
+}
+function declineJumper() {
+  if (!G.jumper) return;
+  G.queue.push(G.jumper); G.jumper = null;
+  G.note = '請他去排隊';
+  render();
+}
+
+function rotateRule() {
+  const c = cfg();
+  const picked = shuffle(c.pool).slice(0, c.size);
+  G.rules = c.pool.filter(x => picked.includes(x));
+  for (const r of G.rules) G.open[r] = pick(rangeOf(r));
+}
+
+function startDay(d) {
+  G.day = d; G.phase = 'counter'; G.t = cfg().counterMs;
+  G.rules = []; G.open = {}; G.ruleAcc = 0; G.spawnAcc = 0;
+  rotateRule();
+  G.queue = []; G.front = null; G.jumper = null; G.jumperLeft = 0;
+  G.booked = []; G.credits = cfg().credits + G.creditBonus;
+  G.maxPatience = PATIENCE_MS + G.patienceBonus;
+  G.announced = false; G.pending = null; G.noshow = cfg().noshow || null;
+  G.note = d === 0 ? '提示：看上方的放行條件，要同時符合所有條件才放行，不符合就退回。' : '';
+  G.complaint = null;
+  spawn();
+  render();
+}
+
+/* 櫃台：放行或退回目前這位病人 */
+function decide(pass) {
+  if (G.phase !== 'counter' || !G.front) return;
+  const p = G.front;
+  const match = p.emergency ? true : matchesAll(p);
+  const correct = pass === match;
+  stamp(pass ? '放行 ✓' : '退回 ✗', correct);
+  setStaff(correct, pass);
+
+  if (correct) {
+    G.combo++;
+    const pts = 5 + Math.min(G.combo - 1, 4) * 2;
+    G.score += pts; G.stats.correct++;
+    if (pass) {
+      if (p.emergency) { G.stats.emergency = (G.stats.emergency || 0) + 1; G.note = `🚑 ${p.name} 急診已處理 +${pts}`; }
+      else { G.booked.push(p); G.note = `${p.name} 放行，今天稍後到診 +${pts}`; }
+      ghostLeave(p, 'happy', 'right', pick(THANKS));
+    } else {
+      G.note = `${p.name} 退回 +${pts}`;
+      ghostLeave(p, 'neutral', 'left', pick(OKAY));
+    }
+    if (G.combo % 4 === 0) {
+      comboBurst(G.combo);
+      if (G.stars < MAX_STARS) { G.stars++; G.note += '｜診所評價回升一顆星'; sfx('star'); }
+    } else {
+      sfx('ok');
+    }
+    flashQ('front', 'ok', '+' + pts);
+  } else {
+    if (G.comboShield > 0) { G.comboShield--; G.note = '連擊保險生效，連擊沒有中斷'; }
+    else G.combo = 0;
+    G.score -= 5; G.stats.wrong++;
+    G.stars = Math.max(0, G.stars - 1);
+    G.note = p.emergency ? `${p.name} 是急診，不能退回 −5、評價 −1 星`
+      : match ? `${p.name} 其實符合規則，不該退回 −5、評價 −1 星` : `${p.name} 不符合規則，不該放行 −5、評價 −1 星`;
+    setComplaint(p.emergency ? '我快不行了，你怎麼不讓我進去！' : match ? '我明明符合條件啊！' : '你怎麼讓我進來？我不是這一類！');
+    ghostLeave(p, 'angry', 'left', match ? '我明明符合！' : '怎麼讓我進來？');
+    sfx('bad');
+    flashQ('front', 'bad', '−5');
+  }
+  advanceFront();
+  render();
+}
+
+/* 換下一位：櫃台空了就立刻叫下一位，不用等下一次來客計時 */
+function advanceFront() {
+  if (G.queue.length) G.front = G.queue.shift();
+  else if (G.jumper) { G.front = G.jumper; G.jumper = null; }
+  else G.front = null;
+  if (!G.front && G.phase === 'counter') { spawn(); G.spawnAcc = 0; }
+}
+
+function timeoutFront() {
+  G.stats.timeout++; G.score -= 3; G.combo = 0;
+  G.stars = Math.max(0, G.stars - 1);
+  G.note = `${G.front.name} 等太久離開了 −3、評價 −1 星`;
+  setComplaint('等好久！我先走了。');
+  G.staffMood = 'worried'; G.staffUntil = Date.now() + 1200; G.staffLine = '來不及了…';
+  sfx('leave');
+  advanceFront();
+}
+
+function endCounter() {
+  G.phase = 'remind'; G.t = REMIND_MS;
+  G.front = null; G.queue = []; G.complaint = null; G.jumper = null; G.pending = null;
+  G.note = G.booked.length
+    ? `櫃台結束，${G.booked.length} 位病人今天稍後會到。按鈕上的數字是每個選項的「沒來機率」。`
+    : '櫃台結束，今天沒有人被放行，所以沒有預約的病人。';
+  render();
+}
+
+/* 提醒 */
+function noShowChance(p, opt) {
+  const f = REMIND_OPTS.find(o => o.key === opt).factor;
+  return p.risk * f;
+}
+function setRemind(id, opt) {
+  if (G.phase !== 'remind') return;
+  const p = G.booked.find(x => x.id === id);
+  if (!p) return;
+  const oldCost = REMIND_OPTS.find(o => o.key === p.remind).cost;
+  const newCost = REMIND_OPTS.find(o => o.key === opt).cost;
+  if (G.credits + oldCost < newCost) { G.note = '提醒額度不夠了。'; render(); return; }
+  G.credits += oldCost - newCost;
+  p.remind = opt;
+  G.note = '';
+  render();
+}
+
+function endRemind() {
+  if (G.phase !== 'remind') return;
+  G.phase = 'reveal'; G.t = REVEAL_MS;
+  let a = 0, n = 0;
+  for (const p of G.booked) {
+    const noShowP = noShowChance(p, p.remind);
+    p.shownChance = noShowP;
+    if (Math.random() >= noShowP) {
+      p.arrived = true; G.score += 10; G.stats.arrived++; a++;
+      flashQ(`r-${p.id}`, 'ok', '+10');
+    } else {
+      p.arrived = false; G.stats.noshow++; n++;
+      flashQ(`r-${p.id}`, 'bad');
+    }
+  }
+  G.stats.booked += G.booked.length;
+  G.note = G.booked.length ? `結果：${a} 位準時來，${n} 位沒來。` : '今天沒有放行任何預約，沒有結果可以揭曉。';
+  sfx('reveal');
+  render();
+}
+
+function endDay() {
+  if (G.phase !== 'reveal') return;
+  G.phase = 'dayend';
+  const bonus = G.credits * 2;
+  G.score += bonus;
+  G.note = bonus ? `剩下的 ${G.credits} 點額度換成 +${bonus} 分` : '';
+  render();
+}
+
+/* 每天結束後：選一項升級（最後一天直接看結果） */
+function nextDay() {
+  if (G.day >= DAYS.length - 1) return finish();
+  G.upgradeChoices = shuffle(UPGRADES).slice(0, 3);
+  G.phase = 'upgrade';
+  render();
+}
+
+function chooseUpgrade(i) {
+  if (G.phase !== 'upgrade') return;
+  const u = G.upgradeChoices[i];
+  if (!u) return;
+  u.apply();
+  G.lastUpgrade = u.name;
+  sfx('upgrade');
+  startDay(G.day + 1);
+  G.note = `獲得升級：${u.name}（${u.desc}）`;
+  render();
+}
+
+function finish() {
+  G.phase = 'end';
+  const s = G.stats;
+  G.rate = s.booked ? Math.round(s.arrived / s.booked * 100) : 0;
+  const decided = s.correct + s.wrong + s.timeout;
+  G.accuracy = decided ? Math.round(s.correct / decided * 100) : 0;
+  let grade = (G.rate >= 70 && G.accuracy >= 75) ? '順暢'
+    : (G.rate >= 50 && G.accuracy >= 55) ? '小塞車' : '大混亂';
+  if (G.stars <= 1 && grade === '順暢') grade = '小塞車';
+  G.grade = grade;
+  G.note = '';
+  if (grade === '順暢') { sfx('win'); confetti(60); } else if (grade === '大混亂') sfx('lose');
+  render();
+}
+
+/* 每 100 毫秒一次 */
+function loop() {
+  if (!G) return;
+  if (G.phase === 'counter') {
+    G.t -= 100; G.spawnAcc += 100; G.ruleAcc += 100;
+    let changed = false;
+    if (G.complaint && Date.now() > G.complaintUntil) { G.complaint = null; changed = true; }
+    if (G.staffMood !== 'neutral' && Date.now() > G.staffUntil) { G.staffMood = 'neutral'; G.staffLine = '今天也要順順的！'; changed = true; }
+    if (G.spawnAcc >= cfg().spawnMs * G.spawnFactor) {
+      G.spawnAcc = 0;
+      if (!G.front || G.queue.length + 1 < MAX_QUEUE) {
+        const jumpOK = G.front && !G.jumper && G.stats.total > 3 && Math.random() < cfg().jump;
+        if (jumpOK) makeJumper(); else spawn();
+        changed = true;
+      }
+    }
+    if (G.jumper) {
+      G.jumperLeft -= 100;
+      if (G.jumperLeft <= 0) { G.queue.push(G.jumper); G.jumper = null; changed = true; }
+    }
+    if (G.ruleAcc >= cfg().switchMs) { G.ruleAcc = 0; rotateRule(); changed = true; }
+    // 今日公告：中途改寫其中一條規則，1 秒後生效
+    if (cfg().announce && !G.announced && G.t <= cfg().counterMs / 2) {
+      G.announced = true;
+      const r = pick(G.rules), v = pick(others(rangeOf(r), G.open[r]));
+      G.pending = {r, v, at: Date.now() + 1000};
+      G.note = `📢 公告：${RULE_NAME[r]}改為「${v}」，1 秒後生效`;
+      changed = true;
+    }
+    if (G.pending && Date.now() >= G.pending.at) {
+      G.open[G.pending.r] = G.pending.v;
+      G.note = `📢 公告生效：${RULE_NAME[G.pending.r]}現在是「${G.pending.v}」`;
+      G.pending = null; changed = true;
+    }
+    if (G.front) {
+      G.front.patience -= 100;
+      if (G.front.patience <= 0) {
+        ghostLeave(G.front, 'impatient', 'left', '等好久！');
+        timeoutFront(); changed = true;
+      }
+    }
+    if (!G.front && G.queue.length) { G.front = G.queue.shift(); changed = true; }
+    // 保險：櫃台如果空著，就立刻叫一位病人
+    if (!G.front && !G.queue.length && !G.jumper) { spawn(); changed = true; }
+    if (G.t <= 0) { endCounter(); return; }
+    if (changed) render(); else updateCounterBits();
+  } else if (G.phase === 'remind') {
+    G.t -= 100;
+    if (G.t <= 0) endRemind(); else updateTimer();
+  } else if (G.phase === 'reveal') {
+    G.t -= 100;
+    if (G.t <= 0) endDay(); else updateTimer();
+  }
+}
+
+function updateCounterBits() {
+  const b = $('#pbar');
+  if (b && G.front) {
+    const ratio = G.front.patience / G.maxPatience;
+    b.style.width = (ratio * 100) + '%';
+    b.classList.toggle('low', ratio < 0.35);
+  }
+  updateTimer();
+}
+function updateTimer() {
+  const el = $('#timer');
+  if (el) el.textContent = Math.ceil(G.t / 1000) + ' 秒';
+}
+
+/* ================= 畫面 ================= */
+function enterCls(id) {
+  if (seenIds.has(id)) return '';
+  seenIds.add(id);
+  return 'arrive';
+}
+
+function hudHTML() {
+  const timed = ['counter', 'remind', 'reveal'].includes(G.phase);
+  return `<div><span class="event">🗓 ${cfg().event}</span></div>
+    <div class="hud"><span>第 ${G.day + 1} 天 ${DAYS[G.day]}｜<b>${PHASE_NAME[G.phase]}</b></span>
+      <span id="timer">${timed ? Math.ceil(G.t / 1000) + ' 秒' : ''}</span></div>
+    <div class="hud"><span class="stars ${G.stars < MAX_STARS ? '' : ''}">${stars(G.stars)}</span>
+      <span>分數 <b>${G.score}</b></span></div>
+    <div class="hud"><span>${G.phase === 'remind' ? `提醒額度 <b>${G.credits}</b>` : `連擊 <b class="${G.combo >= 4 ? 'pop' : ''}">${G.combo}</b>`}</span></div>
+    ${G.note ? `<div class="note">${G.note}</div>` : '<div class="note"></div>'}`;
+}
+
+function counterHTML() {
+  const p = G.front;
+  const pills = cfg().pool.map(x => `<span class="pill ${G.rules.includes(x) ? 'on' : ''}">${RULE_NAME[x]}</span>`).join('');
+  // 條件只在真的換了才播放彈出動畫；其他重畫時不重播，避免閃爍
+  const ruleKey = G.rules.map(x => x + G.open[x]).join('|');
+  const ruleFresh = G.lastRuleKey !== ruleKey;
+  G.lastRuleKey = ruleKey;
+  const line = (label, v) => `<span>${label}：${v}</span>`;
+  const complaint = G.complaint ? `<div class="complaint">💬「${G.complaint}」</div>` : '';
+  const waiting = G.queue.slice(0, 4).map(q => `<span class="qp walk">${avatar(q, 'neutral', 'xs')}</span>`).join('');
+  const card = p ? `
+    <div class="pcard ${enterCls('f' + p.id)}" data-key="front">
+      ${p.emergency ? '<div class="emg">🚑 急診！請立刻放行</div>' : ''}
+      <div class="row">${avatar(p, p.patience < 2000 ? 'impatient' : 'neutral')}
+        <div style="flex:1"><b style="font-size:19px">${p.name}</b>
+          <div class="bubble">「${p.line}」</div>
+          <div class="fields">
+            ${line('科別', p.dept)}
+            ${line('掛號時段', p.period)}
+            ${line('年齡層', p.age)}
+            ${line('就診類型', p.visit)}
+          </div>
+        </div>
+      </div>
+      <div class="bar"><i id="pbar" style="width:${p.patience / G.maxPatience * 100}%"></i></div>
+    </div>` : `<div class="pcard center muted" style="padding-top:70px">☕ 等待下一位病人…</div>`;
+  return `<div class="counter-scene">
+    <div class="staffrow">${avatar(STAFF, G.staffMood, 'sm')}<div class="bubble">櫃台：「${G.staffLine}」</div></div>
+    ${complaint}
+    ${G.jumper ? `<div class="jump">
+      <b>🙋 ${G.jumper.name}</b> 說：「我很急，可以先看嗎？」
+      <div class="btns"><button data-act="jumpyes">讓他先進（後面的人多等）</button><button class="deny" data-act="jumpno">請他排隊</button></div>
+      <div class="bar"><i style="width:${G.jumperLeft / 4500 * 100}%"></i></div>
+    </div>` : ''}
+    <div class="rulebox">
+      <div class="muted">放行條件（${G.rules.length} 條須同時符合，每 ${cfg().switchMs / 1000} 秒換一組）</div>
+      <div class="rule ${ruleFresh ? '' : 'still'}" key="${ruleKey}">${ruleText()}</div>
+      ${G.noshow ? `<div class="muted">⚠ 今天的爽約規則：${Object.values(G.noshow).join('＋')}的病人容易爽約</div>` : ''}
+      <div class="pills">${pills}</div>
+    </div>
+    ${card}
+    <div class="btns">
+      <button data-act="pass" ${p ? '' : 'disabled'}>✓ 放行</button>
+      <button class="deny" data-act="deny" ${p ? '' : 'disabled'}>✗ 退回</button>
+    </div>
+    <div class="queue">${waiting}${G.queue.length > 4 ? `<span class="muted">+${G.queue.length - 4}</span>` : ''}
+      <span class="muted" style="margin-left:auto">排隊 ${G.queue.length}｜櫃台剩 ${Math.ceil(G.t / 1000)} 秒</span></div>
+    </div>`;
+}
+
+function remindHTML() {
+  const cards = G.booked.map(p => `
+    <div class="card">
+      <div class="row">${avatar(p, 'neutral', 'sm')}
+        <div style="flex:1"><b>${p.name}</b>
+          ${p.history ? '<span class="tag warn">上次爽約過</span>' : '<span class="tag">沒有爽約紀錄</span>'}
+          <div class="odds">基本沒來機率 ${pct(p.risk)}${p.ruleHit ? '（符合今天的爽約規則）' : ''}</div>
+        </div>
+      </div>
+      <div class="seg">${REMIND_OPTS.map(o => `
+        <button class="${p.remind === o.key ? 'on' : ''}" data-act="remind" data-id="${p.id}" data-opt="${o.key}">
+          ${o.label}<small>${o.cost ? `${o.cost} 額度` : '免費'}｜沒來 ${pct(noShowChance(p, o.key))}</small></button>`).join('')}
+      </div>
+    </div>`).join('');
+  return `<p class="muted">越早提醒越有效，但也越貴。你要決定額度花在誰身上。</p>
+    ${cards || '<div class="card center">今天沒有放行任何預約的病人（退回或急診不會有預約）😴</div>'}
+    <button data-act="endremind">完成提醒，看結果</button>`;
+}
+
+function revealHTML() {
+  const cards = G.booked.map(p => `
+    <div class="card ${p.arrived ? 'happy-bounce' : 'no'}" data-key="r-${p.id}">
+      <div class="row">${avatar(p, p.arrived ? 'happy' : 'sad', 'sm')}
+        <div style="flex:1"><b>${p.name}</b>
+          <div class="muted">${REMIND_OPTS.find(o => o.key === p.remind).label}提醒｜沒來機率 ${pct(p.shownChance)}</div></div>
+        <span class="tag ${p.arrived ? '' : 'warn'}">${p.arrived ? '✓ 準時來了' : '✗ 沒有來'}</span>
+      </div></div>`).join('');
+  return `${cards || '<div class="card center">今天沒有放行任何預約的病人，所以沒有結果</div>'}
+    <p class="muted center">機率低也可能沒來，這就是隨機性。</p>`;
+}
+
+function dayendHTML() {
+  const isLast = G.day >= DAYS.length - 1;
+  const s = G.stats;
+  return `<div class="card center"><h2>${DAYS[G.day]} 結束 🎉</h2>
+    <p>診所評價 <span class="stars">${stars(G.stars)}</span></p>
+    <p>櫃台正確 ${s.correct} 次｜預約 ${s.booked} 位，準時來 ${s.arrived} 位</p>
+    <p class="muted">目前分數 ${G.score}</p></div>
+    <button data-act="nextday">${isLast ? '看這一週的結果' : '選擇一項升級 ➜'}</button>`;
+}
+
+function upgradeHTML() {
+  const opts = G.upgradeChoices.map((u, i) =>
+    `<button class="up" data-act="upgrade" data-i="${i}">${u.name}<small>${u.desc}</small></button>`).join('');
+  return `<div class="card center"><h2>🛠 診所升級</h2><p class="muted">選一項，之後每一天都會生效。</p></div>${opts}`;
+}
+
+function introHTML() {
+  return `<div class="marquee">${[0, 1, 2].map(i => `<div class="walk">${avatar({color: PALETTE[i * 2], hair: HAIRS[i]}, 'happy', 'sm')}</div>`).join('')}</div>
+    <div class="card center">
+      <h2>🏥 一週的診所</h2>
+      <p>你是一個人，要撐過三天的門診。</p>
+      <p class="muted">看條件，放行或退回；決定要提醒誰。</p>
+    </div>
+    <button data-act="start">開始 ▶</button>
+    ${leaderboardHTML()}`;
+}
+
+function endHTML() {
+  const mood = G.grade === '順暢' ? 'happy' : G.grade === '大混亂' ? 'worried' : 'neutral';
+  const msg = {
+    順暢: '櫃台和提醒都照顧到了，大部分預約的病人都準時來了。',
+    小塞車: '有些判斷出錯，也有人沒來，但診所還撐得住。',
+    大混亂: '櫃台手忙腳亂，或是提醒沒有用在刀口上。'
+  }[G.grade];
+  const s = G.stats;
+  return `<div class="card center">
+      <div class="marquee" style="margin:4px 0">${[0, 1, 2].map(i => `<div class="${G.grade === '順暢' ? 'walk' : ''}">${avatar({color: PALETTE[i * 2 + 1], hair: HAIRS[i + 1]}, mood, 'sm')}</div>`).join('')}</div>
+      <h2>${G.grade}</h2><p>${msg}</p>
+      <p>診所評價 <span class="stars">${stars(G.stars)}</span></p>
+      <p><b>${G.score}</b> 分</p></div>
+    <div class="card">
+      <p>櫃台正確率：${G.accuracy}%</p>
+      <p>預約準時來：${G.rate}%（${s.arrived}/${s.booked}）</p>
+      <p>櫃台判斷錯誤：${s.wrong}，等太久離開：${s.timeout}</p></div>
+    ${leaderboardFormHTML()}
+    <button data-act="restart">再玩一次 ↻</button>`;
+}
+
+function render() {
+  const app = $('#app');
+  let html;
+  if (G.phase === 'intro') html = introHTML();
+  else if (G.phase === 'end') html = endHTML();
+  else if (G.phase === 'upgrade') html = hudHTML() + upgradeHTML();
+  else {
+    const body = {counter: counterHTML, remind: remindHTML, reveal: revealHTML, dayend: dayendHTML}[G.phase]();
+    html = hudHTML() + body;
+  }
+  app.innerHTML = html;
+  flushFx();
+}
+
+function flushFx() {
+  for (const f of fxQ) {
+    const el = document.querySelector(`[data-key="${f.key}"]`);
+    if (!el) continue;
+    if (f.kind === 'ok' || f.kind === 'bad') {
+      el.classList.add('fx-' + f.kind);
+      setTimeout(() => el.classList.remove('fx-' + f.kind), 800);
+    }
+    if (f.text) {
+      const r = el.getBoundingClientRect();
+      const d = document.createElement('div');
+      d.className = 'float';
+      d.textContent = f.text;
+      d.style.color = f.kind === 'bad' ? '#d9534f' : '#1f8a70';
+      d.style.left = (r.left + r.width / 2 - 20) + 'px';
+      d.style.top = (r.top + r.height / 3) + 'px';
+      document.body.appendChild(d);
+      setTimeout(() => d.remove(), 1300);
+    }
+  }
+  fxQ = [];
+}
+
+/* ================= 點擊處理 ================= */
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-act]');
+  if (!b || b.disabled) return;
+  audio();   // 第一次點擊時解鎖音效
+  const a = b.dataset.act;
+  if (a === 'sound') toggleSound();
+  else if (a === 'start') startDay(0);
+  else if (a === 'pass') decide(true);
+  else if (a === 'deny') decide(false);
+  else if (a === 'jumpyes') acceptJumper();
+  else if (a === 'jumpno') declineJumper();
+  else if (a === 'remind') setRemind(b.dataset.id, b.dataset.opt);
+  else if (a === 'endremind') endRemind();
+  else if (a === 'nextday') nextDay();
+  else if (a === 'upgrade') chooseUpgrade(+b.dataset.i);
+  else if (a === 'restart') newGame();
+  else if (a === 'savescore') saveScore();
+});
+
+/* ================= 開始 ================= */
+$('#mute').textContent = soundOn ? '🔊' : '🔇';
+newGame();
+setInterval(loop, 100);
+</script>
+</body>
+</html>
