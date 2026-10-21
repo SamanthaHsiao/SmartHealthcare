@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>候診大廳</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{--bg:#f4f7f6;--card:#fff;--ink:#1d2b29;--mute:#6b7d79;--brand:#1f8a70;--warn:#d9534f;--line:#d7e3df;--soft:#eef5f2}
+[hidden]{display:none!important}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Noto Sans TC","PingFang TC",sans-serif;background:var(--bg);color:var(--ink);overflow-x:hidden}
+h1,h2,h3{margin:.2em 0}
+button{font:inherit;cursor:pointer;border:0;border-radius:12px;padding:12px 16px;background:var(--brand);color:#fff}
+button.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+button:disabled{opacity:.45;cursor:not-allowed}
+input{font:inherit;padding:12px;border-radius:12px;border:1px solid var(--line);width:100%}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:12px}
+.muted{color:var(--mute);font-size:14px}
+.tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:999px;background:var(--soft);color:var(--brand)}
+.tag.urgent{background:#fdecea;color:var(--warn)}
+.center{text-align:center}
+.full{width:100%;margin-top:8px}
+.row{display:flex;gap:8px;align-items:flex-end}
+.row.c{justify-content:center}
+
+/* ---------- 角色動畫 ---------- */
+.av{display:block;overflow:visible}
+.av.sm{width:40px;height:60px}
+.swing-l,.swing-r{transform-box:view-box}
+.walking .av{animation:bob .6s ease-in-out infinite alternate}
+.walking .swing-l{animation:swingL .6s ease-in-out infinite alternate}
+.walking .swing-r{animation:swingR .6s ease-in-out infinite alternate}
+@keyframes bob{to{transform:translateY(-4px)}}
+@keyframes swingL{to{transform:rotate(-20deg)}}
+@keyframes swingR{to{transform:rotate(20deg)}}
+.enter{animation:enter .8s ease-out both}
+@keyframes enter{from{transform:translateX(-140px);opacity:0}to{transform:none;opacity:1}}
+.pop{animation:pop .45s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes pop{from{transform:scale(.2);opacity:0}to{transform:scale(1);opacity:1}}
+.bubble{background:#fff;border:1px solid var(--line);border-radius:14px;padding:6px 10px;font-size:14px;margin-top:6px;display:inline-block;max-width:100%}
+.urgent-ring{box-shadow:0 0 0 3px var(--warn);border-radius:14px;animation:pulse 1s ease-in-out infinite alternate}
+@keyframes pulse{to{box-shadow:0 0 0 9px rgba(217,83,79,.12)}}
+
+/* ---------- 時段 ---------- */
+.ctitle{font-weight:600;margin:12px 0 6px}
+.slots{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.slot{background:var(--card);border:1px dashed var(--line);border-radius:12px;padding:8px 4px;min-height:132px;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;font-size:14px}
+.slot.taken{border-style:solid;border-color:var(--brand);background:var(--soft)}
+.slot.pending{border-color:var(--warn)}
+.time{font-size:12px;color:var(--mute)}
+
+/* ---------- 特效 ---------- */
+.ok{animation:okp .8s ease-out}
+@keyframes okp{0%{box-shadow:0 0 0 0 rgba(31,138,112,.7)}100%{box-shadow:0 0 0 22px rgba(31,138,112,0)}}
+.bad{animation:shake .45s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.float{position:fixed;pointer-events:none;font-weight:700;font-size:22px;animation:floatup 1.2s ease-out forwards;z-index:50}
+@keyframes floatup{to{transform:translateY(-55px);opacity:0}}
+.fx-ghost{position:fixed;pointer-events:none;z-index:40}
+.fx-ghost.runout{animation:runout .9s ease-in forwards}
+@keyframes runout{to{transform:translateX(220px);opacity:0}}
+.fx-ghost.leave{animation:leave 1s ease-in forwards}
+@keyframes leave{0%{transform:none}30%{transform:translateY(-6px) rotate(-6deg)}100%{transform:translateX(-220px);opacity:0}}
+.conf{position:fixed;top:-20px;width:8px;height:12px;z-index:60;animation:fall 2.6s linear forwards}
+@keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
+
+/* ---------- 主持人 ---------- */
+#host{padding:18px}
+.hhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.big{font-size:28px;font-weight:700}
+.hgrid{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:16px}
+#feed{padding-left:18px;margin:0;font-size:14px;line-height:1.7}
+#lb{padding-left:20px;margin:0}
+
+/* ---------- 觀眾手機 ---------- */
+#player{max-width:520px;margin:0 auto;padding:14px}
+.phead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:18px}
+.pt{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:var(--card);color:var(--ink);border:1px solid var(--line);margin-bottom:8px;padding:8px 12px}
+.pt.on{border-color:var(--brand);background:var(--soft)}
+.pt small{display:block;color:var(--mute)}
+.pt em{color:var(--warn);font-style:normal;font-size:12px}
+.pc{margin-bottom:10px}
+.sl{background:var(--card);color:var(--ink);border:1px solid var(--line);flex:1;padding:6px 2px;font-size:13px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.sl small{color:var(--mute);font-size:12px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:8px}
+.row3 button{font-size:14px;padding:10px 6px}
+.rm{display:flex;gap:10px;align-items:center}
+</style>
+</head>
+<body>
+
+<div id="host" hidden>
+  <header class="hhead">
+    <div><h1>候診大廳</h1><div class="muted" id="phase"></div></div>
+    <div class="big" id="timer"></div>
+    <div class="big" id="team"></div>
+  </header>
+  <main class="hgrid">
+    <section><h3>診間時刻表</h3><div id="board"></div></section>
+    <section><h3 id="midtitle">候診區</h3><div id="mid"></div></section>
+    <aside>
+      <div class="card center"><h3>掃碼加入</h3><div id="qr" style="display:inline-block"></div><p class="muted" id="joinurl"></p></div>
+      <div class="card"><h3>排行榜</h3><ol id="lb"></ol></div>
+      <div class="card"><h3>動態</h3><ul id="feed"></ul></div>
+      <div id="ctrl"></div>
+    </aside>
+  </main>
+</div>
+
+<div id="player" hidden></div>
+
+<script>
+/* ================= 設定 ================= */
+const CLINICS=[
+  {id:'A',name:'診間 A',dept:'內科'},
+  {id:'B',name:'診間 B',dept:'小兒科'},
+  {id:'C',name:'診間 C',dept:'牙科'}
+];
+const SLOTS=['09:00','10:00','11:00','14:00'];
+const NAMES=['王小明','陳美玲','林志豪','黃雅婷','張家豪','李佩珊','吳承恩','蔡怡君','劉建宏','周淑芬','許哲瑋','鄭宜庭'];
+const PALETTE=['#f0a04b','#4b9ce2','#e07a9b','#7bc47f','#9b8ee0','#e8c547'];
+const HAIRS=['#3a2a20','#1f1f1f','#8a5a2b','#c0392b','#6d4c41'];
+const CHOICES={confirm:'✓ 會準時到',reschedule:'↻ 需改期',noshow:'✗ 可能未到'};
+const REPLIES={
+  confirm:['好，我會準時到。','明天見，謝謝提醒！','我會到的。'],
+  reschedule:['可以幫我改到下週嗎？','那天有事，想換時間。','能換到下午嗎？'],
+  noshow:['（已讀，未回覆）','好，謝謝……','等等再說。']
+};
+const GRADE_MSG={順暢:'病人幾乎都準時到，診所運作得很好。',小塞車:'有些時段被撞掉，但還撐得住。',大混亂:'候診室塞爆了，下一局再挑戰！'};
+const CELEB=[{color:'#f0a04b',hair:'#3a2a20'},{color:'#4b9ce2',hair:'#1f1f1f'},{color:'#7bc47f',hair:'#8a5a2b'}];
+const PLACE_SECS=60, REMIND_SECS=40, SPAWN_MS=4000, URGENT_MS=12000, MAX_WAIT=6;
+
+/* ================= 共用工具 ================= */
+const $=s=>document.querySelector(s);
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const uid=()=>Math.random().toString(36).slice(2,8);
+const isPlayer=new URLSearchParams(location.search).has('p');
+
+/* 傳輸層：透過 server.js 的中繼，讓不同裝置（手機）都能連線 */
+const ch={
+  onmessage:null,
+  postMessage(m){
+    fetch('/send',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(m)}).catch(()=>{});
+  }
+};
+const es=new EventSource('/events');
+es.onmessage=e=>{ if(ch.onmessage) ch.onmessage({data:JSON.parse(e.data)}); };
+
+const ME={id:uid(),name:''};
+let sel=null, view=null;
+
+/* ---------- 角色 SVG（原創小人） ---------- */
+function avatar(p,mood='neutral',cls=''){
+  const mouth={
+    happy:'M24 33 Q30 40 36 33',
+    sad:'M24 38 Q30 32 36 38',
+    worried:'M25 37 Q30 34 35 37',
+    neutral:'M25 35 L35 35'
+  }[mood]||'M25 35 L35 35';
+  const brow=(mood==='worried'||mood==='sad')
+    ?'<path d="M21 22 L26 24 M39 22 L34 24" stroke="#2b2b2b" stroke-width="1.6" stroke-linecap="round"/>':'';
+  return `<svg class="av ${cls}" viewBox="0 0 60 90" width="60" height="90">
+    <rect class="swing-l" style="transform-origin:14px 48px" x="10" y="46" width="8" height="22" rx="4" fill="${p.color}"/>
+    <rect class="swing-r" style="transform-origin:46px 48px" x="42" y="46" width="8" height="22" rx="4" fill="${p.color}"/>
+    <rect x="18" y="44" width="24" height="30" rx="10" fill="${p.color}"/>
+    <rect x="20" y="72" width="8" height="16" rx="3" fill="#44505c"/>
+    <rect x="32" y="72" width="8" height="16" rx="3" fill="#44505c"/>
+    <circle cx="30" cy="28" r="16" fill="#f5d0b0"/>
+    <path d="M14 26 Q30 2 46 26 Q40 14 30 14 Q20 14 14 26Z" fill="${p.hair||'#3a2a20'}"/>
+    <circle cx="24" cy="27" r="2.2" fill="#2b2b2b"/>
+    <circle cx="36" cy="27" r="2.2" fill="#2b2b2b"/>
+    ${brow}
+    <path d="${mouth}" stroke="#2b2b2b" stroke-width="2" fill="none" stroke-linecap="round"/>
+  </svg>`;
+}
+
+/* ================= HOST: 遊戲狀態與規則 ================= */
+function fresh(prev={}){
+  return {
+    phase:'lobby', t:0,
+    seq:prev.seq||0, fxSeq:prev.fxSeq||0, fx:[],
+    spawnAcc:0, waiting:[],
+    board:Object.fromEntries(CLINICS.map(c=>[c.id,SLOTS.map(()=>null)])),
+    players:prev.players||{}, team:0, combo:0, missed:0, feed:[], result:null
+  };
+}
+let S=fresh();
+
+function log(m){ S.feed.unshift(m); S.feed=S.feed.slice(0,6); }
+function score(pid,pts){ S.team+=pts; if(pid&&S.players[pid]) S.players[pid].score+=pts; }
+// 特效事件：放進狀態中，讓所有裝置（主持人與手機）都能播放同一個動畫
+function fx(kind,key,extra={}){ S.fxSeq++; S.fx.push({id:S.fxSeq,kind,key,...extra}); S.fx=S.fx.slice(-15); }
+
+function spawn(){
+  if(S.waiting.length>=MAX_WAIT) return;
+  const c=pick(CLINICS);
+  const from=Math.floor(Math.random()*3);
+  const to=Math.min(3, from+1+Math.floor(Math.random()*2));
+  S.seq++;
+  S.waiting.push({
+    id:'p'+S.seq, name:pick(NAMES), dept:c.dept, from, to,
+    urgent:Math.random()<0.15, born:Date.now(),
+    color:pick(PALETTE), hair:pick(HAIRS)
+  });
+}
+
+function expire(){
+  const now=Date.now();
+  S.waiting=S.waiting.filter(p=>{
+    if(p.urgent && now-p.born>URGENT_MS){
+      score(null,-5); S.combo=0;
+      log(`🚨 急診 ${p.name} 等太久離開了 −5`);
+      fx('leave','mid',{html:avatar(p,'sad')});
+      fx('float','mid',{text:'−5',color:'#d9534f'});
+      return false;
+    }
+    return true;
+  });
+}
+
+function place(actor,patientId,cid,slot){
+  const p=S.waiting.find(x=>x.id===patientId);
+  if(!p) return;
+  const c=CLINICS.find(x=>x.id===cid);
+  const key=`s-${cid}-${slot}`;
+  const bad=(msg,pts)=>{
+    score(actor,pts); S.combo=0; log(msg);
+    fx('bad',key); fx('float',key,{text:String(pts).replace('-','−'),color:'#d9534f'});
+  };
+  if(S.board[cid][slot]) return bad(`撞期！${c.name} ${SLOTS[slot]} 已有人 −5`,-5);
+  if(c.dept!==p.dept) return bad(`科別不符：${p.name} 需要${p.dept} −5`,-5);
+  if(slot<p.from||slot>p.to) return bad(`${p.name} 不在可接受時段 −3`,-3);
+
+  const pts=10+S.combo*2+(p.urgent?5:0);
+  S.board[cid][slot]={pid:p.id,name:p.name,dept:p.dept,color:p.color,hair:p.hair,
+    intent:null,reply:null,resolved:false,correct:null};
+  S.waiting=S.waiting.filter(x=>x!==p);
+  S.combo++;
+  score(actor,pts);
+  log(`✔ ${p.name} 排進 ${c.name} ${SLOTS[slot]} +${pts}`);
+  fx('ok',key);
+  fx('float',key,{text:'+'+pts,color:'#1f8a70'});
+}
+
+function remind(actor,pid,choice){
+  if(S.phase!=='remind') return;
+  let loc=null;
+  for(const c of CLINICS){
+    SLOTS.forEach((_,i)=>{ const e=S.board[c.id][i]; if(e&&e.pid===pid) loc={c,i,e}; });
+  }
+  if(!loc||loc.e.resolved) return;
+  const {c,i,e}=loc;
+  const key=`s-${c.id}-${i}`;
+  e.resolved=true;
+  e.correct=(choice===e.intent);
+
+  if(e.correct){
+    let pts=10;
+    if(e.intent==='noshow'){
+      pts=15;
+      fx('runout',key,{html:avatar(e,'happy')});
+      S.board[c.id][i]=null;
+      log(`🎯 攔下未到診 ${e.name}，${c.name} ${SLOTS[i]} 釋出 +15`);
+    } else if(e.intent==='reschedule'){
+      fx('leave',key,{html:avatar(e,'neutral')});
+      S.board[c.id][i]=null;
+      log(`↻ ${e.name} 改期，${c.name} ${SLOTS[i]} 釋出 +10`);
+    } else {
+      log(`✔ ${e.name} 判斷正確 +10`);
+    }
+    score(actor,pts);
+    fx('ok',key);
+    fx('float',key,{text:'+'+pts,color:'#1f8a70'});
+  } else {
+    score(actor,-5);
+    log(`✗ ${e.name} 判斷錯誤 −5`);
+    fx('bad',key);
+    fx('float',key,{text:'−5',color:'#d9534f'});
+  }
+}
+
+function nextPhase(){
+  if(S.phase==='place'){
+    for(const c of CLINICS){
+      S.board[c.id].forEach(e=>{
+        if(e&&e.intent===null){
+          const r=Math.random();
+          e.intent=r<0.6?'confirm':r<0.8?'reschedule':'noshow';
+          e.reply=pick(REPLIES[e.intent]);
+        }
+      });
+    }
+    S.waiting=[];
+    S.phase='remind'; S.t=REMIND_SECS;
+    log('📩 提醒已發出，請判斷每位病人的回覆');
+  } else if(S.phase==='remind'){
+    let missed=0;
+    for(const c of CLINICS) S.board[c.id].forEach(e=>{ if(e&&e.intent==='noshow') missed++; });
+    S.missed=missed;
+    S.result=computeResult();
+    S.phase='end';
+    log(`🏁 本局結束：${S.result.grade}`);
+    if(S.result.grade==='順暢') fx('confetti','mid');
+  }
+}
+
+function computeResult(){
+  const total=CLINICS.length*SLOTS.length;
+  const filled=CLINICS.reduce((a,c)=>a+S.board[c.id].filter(Boolean).length,0);
+  const effective=Math.max(0,filled-S.missed);
+  const rate=Math.round(effective/total*100);
+  const grade=(S.team>=150&&S.missed<=1)?'順暢':(S.team>=80?'小塞車':'大混亂');
+  return {total:S.team,rate,missed:S.missed,grade};
+}
+
+function start(){
+  const players=Object.fromEntries(Object.entries(S.players).map(([k,p])=>[k,{name:p.name,score:0}]));
+  S=fresh({players,seq:S.seq,fxSeq:S.fxSeq});
+  S.phase='place'; S.t=PLACE_SECS;
+  spawn(); spawn();
+  log('🏥 開始！第一階段：排床');
+  broadcast(); renderHost();
+}
+
+function tick(){
+  if(S.phase!=='place'&&S.phase!=='remind') return;
+  S.t--;
+  if(S.phase==='place'){
+    expire();
+    S.spawnAcc+=1000;
+    if(S.spawnAcc>=SPAWN_MS){ S.spawnAcc=0; spawn(); }
+  }
+  if(S.t<=0) nextPhase();
+  broadcast(); renderHost();
+}
+
+function broadcast(){ ch.postMessage({type:'state',s:S}); }
+
+/* ================= 特效播放（主持人與手機共用） ================= */
+const seenFx={host:null,player:null};
+function playFx(which,list){
+  if(!list) return;
+  if(seenFx[which]===null){ // 剛連上時不重播舊的特效
+    seenFx[which]=list.length?list[list.length-1].id:0;
+    return;
+  }
+  for(const f of list) if(f.id>seenFx[which]) runFx(f);
+  if(list.length) seenFx[which]=Math.max(seenFx[which],list[list.length-1].id);
+}
+
+function runFx(f){
+  if(f.kind==='confetti'){ confetti(45); return; }
+  const el=document.querySelector(`[data-key="${f.key}"]`)||document.querySelector('#mid')||document.body;
+  const r=el.getBoundingClientRect();
+  if(f.kind==='float'){
+    const d=document.createElement('div');
+    d.className='float'; d.textContent=f.text; d.style.color=f.color;
+    d.style.left=(r.left+r.width/2-20)+'px'; d.style.top=(r.top+r.height/3)+'px';
+    document.body.appendChild(d);
+    setTimeout(()=>d.remove(),1300);
+    return;
+  }
+  if(f.kind==='ok'||f.kind==='bad'){
+    el.classList.add(f.kind);
+    setTimeout(()=>el.classList.remove(f.kind),800);
+    return;
+  }
+  if(f.kind==='runout'||f.kind==='leave'){
+    const d=document.createElement('div');
+    d.className='fx-ghost '+f.kind; d.innerHTML=f.html;
+    d.style.left=r.left+'px'; d.style.top=r.top+'px';
+    document.body.appendChild(d);
+    setTimeout(()=>d.remove(),1100);
+  }
+}
+
+function confetti(n){
+  const cols=['#1f8a70','#e0a526','#d9534f','#3b82f6','#a855f7'];
+  for(let i=0;i<n;i++){
+    const d=document.createElement('div');
+    d.className='conf';
+    d.style.left=(Math.random()*100)+'vw';
+    d.style.background=pick(cols);
+    d.style.animationDelay=(Math.random()*0.8)+'s';
+    document.body.appendChild(d);
+    setTimeout(()=>d.remove(),4000);
+  }
+}
+
+/* ================= HOST: 畫面 ================= */
+const seenPatients=new Set(), seenSeats=new Set();
+let hostSig='';
+
+function openReminders(){
+  return CLINICS.flatMap(c=>SLOTS.map((t,i)=>({c,i,e:S.board[c.id][i]})))
+    .filter(x=>x.e&&!x.e.resolved);
+}
+
+function slotHTML(c,i){
+  const e=S.board[c.id][i];
+  const key=`s-${c.id}-${i}`;
+  let cls='', inner;
+  if(e){
+    cls='taken'+((S.phase==='remind'&&!e.resolved)?' pending':'');
+    const mood=e.resolved?(e.correct?'happy':'sad'):'neutral';
+    const popCls=seenSeats.has(e.pid)?'':'pop';
+    seenSeats.add(e.pid);
+    inner=`<div class="${popCls}">${avatar(e,mood,'sm')}</div><span>${e.name}</span>`;
+  } else {
+    inner='<span class="muted">🪑 空</span>';
+  }
+  return `<div class="slot ${cls}" data-key="${key}"><span class="time">${SLOTS[i]}</span>${inner}</div>`;
+}
+
+function waitCard(p){
+  const isNew=!seenPatients.has(p.id);
+  seenPatients.add(p.id);
+  return `<div class="card ${isNew?'enter':''}" data-key="w-${p.id}">
+    <div class="row walking ${p.urgent?'urgent-ring':''}" style="padding:4px">${avatar(p,p.urgent?'worried':'neutral')}
+      <div><b>${p.name}</b> <span class="tag">${p.dept}</span> ${p.urgent?'<span class="tag urgent">急</span>':''}
+      <div class="muted">希望 ${SLOTS[p.from]} ~ ${SLOTS[p.to]} 之間</div></div>
+    </div></div>`;
+}
+
+function reminderCard(c,i,e){
+  return `<div class="card rm" data-key="r-${e.pid}">${avatar(e,'neutral','sm')}
+    <div><b>${e.name}</b> <span class="muted">${c.name} ${SLOTS[i]}</span><div class="bubble">「${e.reply}」</div></div></div>`;
+}
+
+function renderHost(){
+  $('#phase').textContent={lobby:'等待開始',place:'第一階段｜排床',remind:'第二階段｜提醒判斷',end:'本局結束'}[S.phase];
+  $('#timer').textContent=(S.phase==='place'||S.phase==='remind')?S.t+' 秒':'';
+  $('#team').textContent='團隊 '+S.team+' 分';
+
+  const sig=JSON.stringify([S.phase,S.board,S.waiting,S.team,S.players,S.feed,S.result,S.fxSeq]);
+  if(sig!==hostSig){
+    hostSig=sig;
+    buildHost();
+  }
+  playFx('host',S.fx);
+}
+
+function buildHost(){
+  $('#board').innerHTML=CLINICS.map(c=>`<div class="ctitle">${c.name}｜${c.dept}</div>
+    <div class="slots">${SLOTS.map((t,i)=>slotHTML(c,i)).join('')}</div>`).join('');
+
+  let title='候診區', mid='';
+  if(S.phase==='lobby'){
+    mid='<p class="muted">觀眾掃 QR code 加入後，按下「開始遊戲」。</p>';
+  } else if(S.phase==='place'){
+    mid=S.waiting.map(waitCard).join('')||'<p class="muted">候診區目前沒有病人</p>';
+  } else if(S.phase==='remind'){
+    title='回覆收件匣';
+    const open=openReminders();
+    mid=`<p class="muted">等待 ${open.length} 位病人回覆</p>`+open.map(({c,i,e})=>reminderCard(c,i,e)).join('');
+  } else if(S.phase==='end'){
+    title='結算';
+    const r=S.result;
+    const mood=r.grade==='順暢'?'happy':r.grade==='大混亂'?'worried':'neutral';
+    const celeb=CELEB.map(c=>avatar(c,mood,'sm')).join('');
+    mid=`<div class="card center"><div class="row c">${celeb}</div>
+      <h2>${r.grade}</h2><p>${GRADE_MSG[r.grade]}</p>
+      <p>團隊 ${r.total} 分｜有效排滿率 ${r.rate}%</p>
+      <p>未攔下的未到診：${r.missed} 位</p></div>`;
+  }
+  $('#midtitle').textContent=title;
+  $('#mid').innerHTML=mid;
+
+  $('#lb').innerHTML=Object.entries(S.players).sort((a,b)=>b[1].score-a[1].score).slice(0,8)
+    .map(([id,p])=>`<li>${p.name}：${p.score}</li>`).join('')||'<li class="muted">還沒有人加入</li>';
+  $('#feed').innerHTML=S.feed.map(x=>`<li>${x}</li>`).join('');
+  $('#ctrl').innerHTML=(S.phase==='lobby'||S.phase==='end')
+    ? `<button class="full" data-act="start">${S.phase==='end'?'再玩一次':'開始遊戲'}</button>` : '';
+}
+
+/* ================= PLAYER: 畫面 ================= */
+let playerSig='';
+function renderPlayer(){
+  const app=$('#player');
+  if(!ME.name){
+    app.innerHTML=`<div class="card"><h2>加入候診大廳</h2><p class="muted">輸入你的櫃台代號</p>
+      <input id="nm" maxlength="8" placeholder="例如：小綠"><button class="full" data-act="join">加入</button></div>`;
+    return;
+  }
+  if(!view||!view.players[ME.id]){ app.innerHTML='<p class="muted">加入中…</p>'; return; }
+
+  if(view.phase==='place'&&sel&&!view.waiting.some(p=>p.id===sel)) sel=null;
+  const me=view.players[ME.id];
+  const sig=JSON.stringify([view.phase,view.board,view.waiting,me.score,sel,view.result,view.fxSeq]);
+  if(sig!==playerSig){
+    playerSig=sig;
+    buildPlayer(me);
+  }
+  const t=$('#ptimer');
+  if(t) t.textContent=(view.phase==='place'||view.phase==='remind')?view.t+' 秒':'';
+  playFx('player',view.fx);
+}
+
+function buildPlayer(me){
+  let body='';
+  if(view.phase==='lobby'){
+    body='<div class="card center">等待主持人開始…</div>';
+  } else if(view.phase==='place'){
+    body+=`<p class="muted">${sel?'選一個診間時段放入':'先點選一位病人'}</p>`;
+    body+=view.waiting.map(p=>`<button class="pt ${sel===p.id?'on':''}" data-act="pick" data-pid="${p.id}" data-key="w-${p.id}">
+      <span class="walking">${avatar(p,p.urgent?'worried':'neutral','sm')}</span>
+      <span>${p.name}${p.urgent?' <em>急</em>':''}<small>${p.dept}｜${SLOTS[p.from]} ~ ${SLOTS[p.to]}</small></span></button>`).join('')
+      ||'<p class="muted">目前沒有候診病人</p>';
+    body+=CLINICS.map(c=>`<div class="pc"><b>${c.name}｜${c.dept}</b><div class="row">${SLOTS.map((t,i)=>{
+      const e=view.board[c.id][i];
+      return `<button class="sl" data-act="slot" data-c="${c.id}" data-s="${i}" data-key="s-${c.id}-${i}" ${e?'disabled':''}>
+        <span>${t}</span>${e?avatar(e,'neutral','sm'):'<span class="muted">🪑</span>'}<small>${e?e.name:'空'}</small></button>`;
+    }).join('')}</div></div>`).join('');
+  } else if(view.phase==='remind'){
+    const open=CLINICS.flatMap(c=>SLOTS.map((t,i)=>({c,i,e:view.board[c.id][i]}))).filter(x=>x.e&&!x.e.resolved);
+    body+='<p class="muted">判斷每位病人會不會來</p>';
+    body+=open.map(({c,i,e})=>`<div class="card" data-key="r-${e.pid}">
+      <div class="rm">${avatar(e,'neutral','sm')}<div><b>${e.name}</b> <span class="muted">${c.name} ${SLOTS[i]}</span><div class="bubble">「${e.reply}」</div></div></div>
+      <div class="row3">${Object.entries(CHOICES).map(([k,v])=>`<button class="ghost" data-act="remind" data-pid="${e.pid}" data-choice="${k}">${v}</button>`).join('')}</div>
+    </div>`).join('')||'<div class="card center">所有回覆都已處理 🎉</div>';
+  } else if(view.phase==='end'){
+    const r=view.result;
+    const mood=r.grade==='順暢'?'happy':r.grade==='大混亂'?'worried':'neutral';
+    body=`<div class="card center"><div class="row c">${CELEB.map(c=>avatar(c,mood,'sm')).join('')}</div>
+      <h2>${r.grade}</h2><p>${GRADE_MSG[r.grade]}</p><p>團隊 ${r.total} 分</p></div>`;
+  }
+  $('#player').innerHTML=`<div class="phead"><span>${ME.name}</span><span><b>${me.score}</b> 分　<span id="ptimer" class="muted"></span></span></div>${body}`;
+}
+
+/* ================= 訊息處理 ================= */
+ch.onmessage=e=>{
+  const m=e.data||{};
+  if(isPlayer){
+    if(m.type==='state'){ view=m.s; renderPlayer(); }
+    return;
+  }
+  switch(m.type){
+    case 'hello': break;
+    case 'join':
+      S.players[m.player]={name:String(m.name).slice(0,8)||'玩家',score:0};
+      log(`👋 ${S.players[m.player].name} 加入`);
+      break;
+    case 'place':
+      if(S.phase==='place'&&S.players[m.player]) place(m.player,m.patient,m.clinic,m.slot);
+      break;
+    case 'remind':
+      if(S.players[m.player]) remind(m.player,m.patient,m.choice);
+      break;
+    default: return; // 忽略自己發出的 state 等訊息
+  }
+  broadcast(); renderHost();
+};
+
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]'); if(!b) return;
+  const a=b.dataset.act;
+  if(!isPlayer){
+    if(a==='start') start();
+    return;
+  }
+  if(a==='join'){
+    const v=($('#nm').value||'').trim();
+    if(!v) return;
+    ME.name=v.slice(0,8);
+    ch.postMessage({type:'join',player:ME.id,name:ME.name});
+    renderPlayer();
+  } else if(a==='pick'){
+    sel=b.dataset.pid; playerSig=''; renderPlayer();
+  } else if(a==='slot'){
+    if(sel){
+      ch.postMessage({type:'place',player:ME.id,patient:sel,clinic:b.dataset.c,slot:+b.dataset.s});
+      sel=null; playerSig='';
+    }
+  } else if(a==='remind'){
+    ch.postMessage({type:'remind',player:ME.id,patient:b.dataset.pid,choice:b.dataset.choice});
+  }
+});
+
+/* ================= 初始化 ================= */
+if(isPlayer){
+  $('#player').hidden=false;
+  renderPlayer();
+  // 連線建立前可能錯過回應，所以每 2 秒重送一次，直到收到遊戲狀態
+  const hi=setInterval(()=>{ if(view) clearInterval(hi); else ch.postMessage({type:'hello'}); },2000);
+  ch.postMessage({type:'hello'});
+} else {
+  $('#host').hidden=false;
+  renderHost();
+  setInterval(tick,1000);
+  fetch('/info').then(r=>r.json()).then(({joinUrl})=>{
+    $('#joinurl').textContent=joinUrl;
+    if(window.QRCode) new QRCode($('#qr'),{text:joinUrl,width:180,height:180});
+    else $('#qr').textContent='（QR 圖片需要網路，請直接輸入上方網址）';
+  }).catch(()=>{ $('#joinurl').textContent='無法取得網址，請確認 server.js 有在執行'; });
+}
+</script>
+</body>
+</html>
