@@ -1,0 +1,1001 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+:root{--ink:#1d2b29;--brand:#1f8a70;--gold:#f0a924;--soft:#eef5f2}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1920px;height:1080px;overflow:hidden;font-family:Poppins,sans-serif;background:var(--soft)}
+.blob{position:absolute;border-radius:50%}
+#b1{width:900px;height:900px;left:-260px;top:420px;background:var(--brand);opacity:.10}
+#b2{width:520px;height:520px;left:960px;top:-220px;background:var(--gold);opacity:.16}
+.t{position:absolute;left:150px;opacity:0}
+.kick{display:inline-block;font-weight:700;font-size:30px;letter-spacing:.08em;padding:10px 24px;border-radius:999px;background:var(--brand);color:#fff}
+.h{font-weight:700;font-size:68px;line-height:1.0;color:var(--ink);letter-spacing:-.015em;white-space:nowrap}
+.h em{font-style:normal;background:linear-gradient(transparent 58%,rgba(240,169,36,.55) 58%)}
+#card{position:absolute;left:0;top:0;width:1920px;height:1080px;overflow:hidden;background:#fff}
+#band{position:absolute;left:0;top:820px;width:1920px;height:260px;background:linear-gradient(rgba(255,255,255,0),rgba(255,255,255,.75) 45%)}
+#card svg{display:block}
+</style></head><body>
+<div class="blob" id="b1"></div><div class="blob" id="b2"></div>
+<div id="card"><svg id="sv" width="1920" height="1080" viewBox="0 0 1920 1080"></svg></div><div id="band"></div><div class="t" id="k" style="top:872px;left:120px"><span class="kick" id="kt"></span></div><div class="t h" id="l0" style="top:942px;left:120px;font-size:64px"></div><div class="t" id="l1" style="top:1020px;left:120px;font-family:Poppins;font-weight:600;font-size:36px;color:#1f8a70;white-space:nowrap"></div><div class="t h" id="l2" style="display:none"></div>
+<script>
+const $=id=>document.getElementById(id);
+const cl=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
+const eo=x=>{x=cl(x);return 1-Math.pow(1-x,3)};
+const ease=x=>{x=cl(x);return x*x*(3-2*x)};
+const back=x=>{x=cl(x);const c=1.7;return 1+(c+1)*Math.pow(x-1,3)+c*Math.pow(x-1,2)};
+const lerp=(a,b,t)=>a+(b-a)*t;
+const C={ink:'#1d2b29',brand:'#1f8a70',gold:'#f0a924',warn:'#e5564f',purple:'#9b7fe6',green:'#3fae6a',soft:'#eef5f2',white:'#ffffff'};
+function shade(hex,f){const n=parseInt(hex.slice(1),16);let r=n>>16,g=n>>8&255,b=n&255;
+  const m=v=>Math.round(f<0?v*(1+f):v+(255-v)*f);return '#'+[m(r),m(g),m(b)].map(v=>Math.max(0,Math.min(255,v)).toString(16).padStart(2,'0')).join('')}
+let DEFS=new Map();
+function lg(c,dir='h'){const id='g'+dir+c.slice(1);if(!DEFS.has(id)){
+  const [x2,y2]=dir==='h'?['1','0']:['0','1'];
+  DEFS.set(id,`<linearGradient id="${id}" x1="0" y1="0" x2="${x2}" y2="${y2}"><stop offset="0" stop-color="${shade(c,.12)}"/><stop offset="1" stop-color="${shade(c,-.12)}"/></linearGradient>`)}
+  return `url(#${id})`}
+const ctx=document.createElement('canvas').getContext('2d');
+function tw(s,size,w=700){ctx.font=`${w} ${size}px Poppins`;return ctx.measureText(s).width}
+// ---------------- character ----------------
+const SKINS=['#f2c9a0','#e0ac7e','#c98d5f','#f5d3b3'];
+function person(o){
+  const {x,fy,shirt='#f0a924',pants='#34434a',hair='#4a3426',skin='#f2c9a0',style='short',walk=0,phase=0,
+    coat=false,mood='happy',elder=false,op=1,phone=false,legs=true,bandage=false,sling=false,closed=false,pain=false,tp=0,nod=0,point=null,joy=false,cheer=false,look=0,phoneFront=false,wave=false,stop=-1}=o;
+  const seed=[...(shirt+hair+skin+style)].reduce((a,c)=>a+c.charCodeAt(0),0)%97/97*3.2; const blink=!closed&&!pain&&((NOW+seed)%3.2)<0.13;
+  // walk cycle: legs swing from the hip, body rises at the passing pose and dips on contact,
+  // weight shifts over the stance leg, arms swing opposite to the legs
+  const sw=Math.sin(phase)*walk, cs=Math.cos(phase);
+  const bob=(1-Math.abs(Math.sin(phase)))*9*walk - Math.abs(Math.sin(phase))*2*walk;
+  const L=Math.max(0,cs)*16*walk, R=Math.max(0,-cs)*16*walk;   // lift the leg that is swinging forward
+  const shift=-sw*5, tilt=-sw*2.2;                              // weight over the stance leg
+  let st=0, stArm=0;                                            // settle after stopping
+  if(stop>=0&&stop<0.6){const u=stop/0.6; st=Math.sin(u*Math.PI)*7*(1-u); stArm=Math.sin(stop*16)*9*(1-u);}
+  let s=`<g opacity="${op}"><ellipse cx="${x}" cy="${fy+2}" rx="${78-bob*1.2}" ry="13" fill="#1d2b29" opacity=".10"/>`;
+  s+=`<g transform="translate(${x+shift},${fy-bob+st}) rotate(${tilt} 0 -150)">`;
+  // long hair back layer
+  if(style==='long') s+=`<path d="M-46 -350 Q-50 -270 -40 -250 L40 -250 Q50 -270 46 -350 Z" fill="${shade(hair,-.08)}"/>`;
+  // legs
+  const leg=(cx,lift,ang)=>`<g transform="rotate(${ang} ${cx} -156)"><rect x="${cx-14}" y="-156" width="28" height="${142-lift}" rx="14" fill="${lg(pants)}"/>
+    <ellipse cx="${cx+(cx<0?-4:4)}" cy="${-14-lift}" rx="21" ry="11" fill="#263238" transform="rotate(${-ang*0.6} ${cx} ${-14-lift})"/></g>`;
+  if(legs) s+=leg(-19,L,sw*9)+leg(19,R,-sw*9);
+  // arms
+  const armC=coat?'#ffffff':shirt, a1=10-sw*26+stArm, a2=-10-sw*26-stArm;
+  const arm=(sx,ang,front)=>`<g transform="translate(${sx},-272) rotate(${ang})"><rect x="-13" y="-6" width="26" height="122" rx="13" fill="${front?lg(armC):shade(armC,-.1)}"/><circle cx="0" cy="120" r="13" fill="${skin}"/></g>`;
+  if(phone){ s+=arm(-56,a1,true); s+=`<g transform="translate(56,-272) rotate(-150)"><rect x="-13" y="-6" width="26" height="100" rx="13" fill="${lg(armC)}"/><circle cx="0" cy="98" r="13" fill="${skin}"/></g><rect x="78" y="-370" width="20" height="38" rx="5" fill="#263238"/>`; }
+  else if(cheer){const w=Math.sin(NOW*9)*10; s+=arm(-56,155+w,true)+arm(56,-155-w,true);}
+  else if(wave){s+=arm(-56,a1,true)+arm(56,-150+Math.sin(NOW*10)*18,true);}
+  else s+=arm(-56,point==='left'?100:a1,true)+((pain||phoneFront)?'':arm(56,point==='right'?-100:a2,true));
+  // torso
+  const torso=`M-52 -272 Q-58 -290 -36 -292 L36 -292 Q58 -290 52 -272 L48 -156 Q48 -144 36 -144 L-36 -144 Q-48 -144 -48 -156 Z`;
+  s+=`<path d="${torso}" fill="${lg(coat?C.brand:shirt)}"/>`;
+  if(coat){
+    s+=`<path d="M-58 -284 L-14 -292 L-8 -200 L-12 -132 L-54 -132 L-50 -230 Z" fill="${lg('#ffffff')}"/>`;
+    s+=`<path d="M58 -284 L14 -292 L8 -200 L12 -132 L54 -132 L50 -230 Z" fill="#e6ecea"/>`;
+    s+=`<path d="M-14 -292 L0 -262 L14 -292" fill="none" stroke="#d4dcda" stroke-width="3"/>`;
+    s+=`<path d="M-18 -290 C-30 -236 30 -236 18 -290" fill="none" stroke="#37474f" stroke-width="5" stroke-linecap="round"/><circle cx="20" cy="-243" r="8" fill="#b0bec5" stroke="#37474f" stroke-width="3"/>`;
+    s+=`<rect x="-46" y="-252" width="24" height="30" rx="4" fill="${C.brand}"/><rect x="-42" y="-244" width="16" height="4" rx="2" fill="#fff"/>`;
+  } else {
+    s+=`<path d="M-16 -292 Q0 -276 16 -292" fill="${shade(shirt,-.18)}"/>`;
+  }
+  // neck + head
+  s+=`<rect x="-11" y="-308" width="22" height="22" rx="6" fill="${shade(skin,-.08)}"/>`;
+  s+=`<g transform="rotate(${nod-tilt*0.6+Math.sin(phase*2)*1.2*walk} 0 -298)">`;
+  s+=`<ellipse cx="-40" cy="-332" rx="7" ry="10" fill="${shade(skin,-.05)}"/><ellipse cx="40" cy="-332" rx="7" ry="10" fill="${shade(skin,-.05)}"/>`;
+  s+=`<ellipse cx="0" cy="-336" rx="40" ry="44" fill="${skin}"/>`;
+  s+=`<path d="M10 -378 Q38 -360 38 -330 Q36 -300 12 -293 Q30 -320 10 -378 Z" fill="${shade(skin,-.06)}" opacity=".6"/>`;
+  // hair
+  const cap=`M-43 -334 C-48 -398 48 -398 43 -334 C38 -360 18 -372 -6 -366 C-22 -362 -36 -352 -43 -334 Z`;
+  if(elder){ s+=`<path d="M-42 -336 C-46 -360 -36 -374 -24 -378 C-30 -366 -34 -352 -36 -336 Z M42 -336 C46 -360 36 -374 24 -378 C30 -366 34 -352 36 -336 Z" fill="${hair}"/><path d="M-26 -376 Q0 -388 26 -376" fill="none" stroke="${hair}" stroke-width="6" stroke-linecap="round"/>`; }
+  else {
+    s+=`<path d="${cap}" fill="${hair}"/>`;
+    if(style==='bun') s+=`<circle cx="0" cy="-386" r="18" fill="${hair}"/>`;
+    if(style==='bob'||style==='long') s+=`<path d="M-43 -340 Q-50 -300 -40 -292 L-34 -296 Q-40 -320 -38 -340 Z M43 -340 Q50 -300 40 -292 L34 -296 Q40 -320 38 -340 Z" fill="${hair}"/>`;
+  }
+  if(coat) s+=`<path d="M-26 -384 Q0 -404 26 -384 L22 -372 Q0 -384 -22 -372 Z" fill="#fff"/><rect x="-5" y="-392" width="10" height="10" rx="2" fill="${C.warn}" opacity=".85"/>`;
+  // face
+  const eye=ex=>`<ellipse cx="${ex}" cy="${-334+look*3}" rx="4.6" ry="6" fill="#263238"/><circle cx="${ex+1.6}" cy="${-336.5+look*3}" r="1.6" fill="#fff"/>`;
+  s+=pain?`<path d="M-22 -339 L-10 -334 L-22 -329 M22 -339 L10 -334 L22 -329" fill="none" stroke="#263238" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>`:closed?`<path d="M-20 -334 Q-14 -328 -8 -334 M8 -334 Q14 -328 20 -334" fill="none" stroke="#263238" stroke-width="3.5" stroke-linecap="round"/>`:blink?`<path d="M-20 -334 L-8 -334 M8 -334 L20 -334" stroke="#263238" stroke-width="3.5" stroke-linecap="round"/>`:eye(-14)+eye(14);
+  if(pain) s+=`<path d="M-26 -343 L-8 -354 M26 -343 L8 -354" stroke="${shade(hair,-.25)}" stroke-width="4.5" stroke-linecap="round"/><rect x="-12" y="-320" width="24" height="12" rx="5" fill="#8d4a3a"/><path d="M-10 -314 L10 -314" stroke="#fff" stroke-width="2.5"/>`;
+  else if(joy) s+=`<path d="M-24 -352 Q-15 -358 -6 -352 M24 -352 Q15 -358 6 -352" fill="none" stroke="${shade(hair,-.1)}" stroke-width="3.5" stroke-linecap="round"/><path d="M-14 -318 Q0 -296 14 -318 Z" fill="#8d4a3a"/><path d="M-9 -316 Q0 -310 9 -316" fill="none" stroke="#fff" stroke-width="3"/>`;
+  else if(mood==='worried') s+=`<path d="M-24 -345 L-8 -352 M24 -345 L8 -352" stroke="${shade(hair,-.1)}" stroke-width="4" stroke-linecap="round"/><path d="M-8 -312 Q0 -318 8 -312" fill="none" stroke="#8d4a3a" stroke-width="3.5" stroke-linecap="round"/>`;
+  else s+=`<path d="M-23 -349 Q-15 -353 -7 -349 M23 -349 Q15 -353 7 -349" fill="none" stroke="${shade(hair,-.1)}" stroke-width="3.5" stroke-linecap="round"/><path d="M-11 -315 Q0 -305 11 -315" fill="none" stroke="#8d4a3a" stroke-width="3.5" stroke-linecap="round"/>`;
+  s+=`<circle cx="-24" cy="-320" r="7" fill="#f29a9a" opacity=".45"/><circle cx="24" cy="-320" r="7" fill="#f29a9a" opacity=".45"/>`;
+  if(bandage) s+=`<path d="M-43 -366 Q0 -384 43 -366 L44 -346 Q0 -364 -44 -346 Z" fill="#ffffff" stroke="#dfe6e4" stroke-width="2"/><circle cx="16" cy="-363" r="6" fill="#e5564f"/>`;
+  if(elder) s+=`<circle cx="-14" cy="-334" r="11" fill="none" stroke="#546e7a" stroke-width="3"/><circle cx="14" cy="-334" r="11" fill="none" stroke="#546e7a" stroke-width="3"/><path d="M-3 -334 L3 -334" stroke="#546e7a" stroke-width="3"/>`;
+  s+=`</g>`;
+  if(sling) s+=`<rect x="-40" y="-222" width="76" height="28" rx="14" fill="${shade(shirt,-.1)}"/><circle cx="-38" cy="-208" r="13" fill="${skin}"/><path d="M-50 -292 L46 -196 L-46 -178 Z" fill="#ffffff"/><path d="M-50 -292 L46 -196 L-46 -178 Z M-50 -292 L-4 -188" fill="none" stroke="#dfe6e4" stroke-width="3"/>`;
+  if(phoneFront){
+    s+=`<path d="M56 -272 L60 -212 L16 -232" fill="none" stroke="${shade(shirt,-.1)}" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>`;
+    s+=`<rect x="-6" y="-272" width="30" height="50" rx="7" fill="#263238"/><rect x="-2" y="-267" width="22" height="38" rx="4" fill="#9fd3e8"/><circle cx="12" cy="-234" r="13" fill="${skin}"/>`;
+  }
+  if(pain){
+    s+=`<path d="M56 -272 L58 -220 L4 -244" fill="none" stroke="${shade(shirt,-.1)}" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/><circle cx="0" cy="-246" r="14" fill="${skin}"/>`;
+    const pa=.45+.55*Math.abs(Math.sin(tp*7));
+    s+=`<g opacity="${pa}"><path d="M-30 -268 L-46 -282 M-34 -248 L-56 -250 M-30 -228 L-46 -216" stroke="#e5564f" stroke-width="5" stroke-linecap="round"/></g>`;
+    const d1=(tp*40)%22, d2=((tp*40)+11)%22;
+    s+=`<path d="M46 ${-372+d1} q7 11 0 18 q-7 -7 0 -18 Z" fill="#7fc8f8" opacity="${1-d1/22}"/><path d="M-50 ${-360+d2} q6 10 0 16 q-6 -6 0 -16 Z" fill="#7fc8f8" opacity="${1-d2/22}"/>`;
+  }
+  s+=`</g></g>`;
+  return s;
+}
+let NOW=0;
+const nurse=(x=930,o={})=>person(Object.assign({x:x,fy:760,coat:true,style:'bun',hair:'#3b2a20',pants:'#17695a',skin:'#e8b88f'},o));
+// ---------------- props ----------------
+function bubble(x,y,lines,w,es=[]){const h=lines.length*58+40+(es.length?es.length*42+6:0);
+  let s=`<g filter="url(#sh)"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="30" fill="#fff"/><path d="M${x+46} ${y+h-2} L${x+34} ${y+h+34} L${x+96} ${y+h-2} Z" fill="#fff"/></g>`;
+  lines.forEach((l,i)=>s+=`<text x="${x+30}" y="${y+58+i*58}" font-family="Poppins" font-weight="500" font-size="44" fill="${C.ink}">${l}</text>`);
+  es.forEach((l,i)=>s+=`<text x="${x+30}" y="${y+58+(lines.length-1)*58+50+i*42}" font-family="Poppins" font-weight="500" font-size="32" fill="${C.brand}">${l}</text>`);return s}
+function tagH(size,es){return size+30+(es?Math.round(size*0.6)+6:0)}
+function tag(x,y,txt,col,size=42,anchor='start',es=''){const ez=Math.round(size*0.6); const w=Math.max(tw(txt,size),es?tw(es,ez,600):0)+56, h=tagH(size,es); const x0=anchor==='middle'?x-w/2:x;
+  const tc=['#f0a924','#ffd166'].includes(col)?C.ink:'#fff';
+  return `<g filter="url(#sh)"><rect x="${x0}" y="${y}" width="${w}" height="${h}" rx="${Math.min(h/2,34)}" fill="${col}"/></g><text x="${x0+28}" y="${y+size*0.98+8}" font-family="Poppins" font-weight="700" font-size="${size}" fill="${tc}">${txt}</text>`+
+   (es?`<text x="${x0+28}" y="${y+size*0.98+8+ez+8}" font-family="Poppins" font-weight="600" font-size="${ez}" fill="${tc}" opacity=".88">${es}</text>`:'')}
+function pop(t0,t){return back((t-t0)/0.35)}
+function scaleAt(s,cx,cy,k){return `<g transform="translate(${cx},${cy}) scale(${k}) translate(${-cx},${-cy})">${s}</g>`}
+const DOORS=[[1150,'Medicina',C.brand,'🩺'],[1390,'Pediatría',C.gold,'🧸'],[1630,'Odontología',C.purple,'🦷']];
+function seated(x,o,t,ph){
+  const br=Math.sin(t*2+ph)*2; const k=0.82;
+  let g=`<rect x="${x-60}" y="470" width="120" height="180" rx="22" fill="${o.chair}"/><rect x="${x-50}" y="482" width="100" height="150" rx="16" fill="${shade(o.chair,.12)}"/>`;
+  g+=`<g transform="translate(0,${br})">`+person({x:x,fy:784,shirt:o.shirt,hair:o.hair,style:o.style||'short',elder:o.elder,skin:o.skin,legs:false,mood:o.mood||'happy',pants:o.pants||'#34434a'})+`</g>`;
+  g+=`<rect x="${x-70}" y="628" width="140" height="30" rx="12" fill="${shade(o.chair,-.15)}"/>`;
+  g+=`<rect x="${x-46}" y="622" width="92" height="34" rx="16" fill="${o.pants||'#34434a'}"/>`;
+  g+=`<rect x="${x-36}" y="650" width="26" height="80" rx="13" fill="${o.pants||'#34434a'}"/><rect x="${x+10}" y="650" width="26" height="80" rx="13" fill="${o.pants||'#34434a'}"/>`;
+  g+=`<ellipse cx="${x-25}" cy="732" rx="20" ry="10" fill="#263238"/><ellipse cx="${x+25}" cy="732" rx="20" ry="10" fill="#263238"/>`;
+  g+=`<line x1="${x-58}" y1="656" x2="${x-58}" y2="740" stroke="#90a4ae" stroke-width="6"/><line x1="${x+58}" y1="656" x2="${x+58}" y2="740" stroke="#90a4ae" stroke-width="6"/>`;
+  if(o.item==='mag'){const fl=Math.sin(t*1.2+ph)>0.6?6:0; g+=`<g transform="translate(0,${br})"><rect x="${x-46}" y="${576-fl}" width="92" height="64" rx="6" fill="#ff8a65"/><rect x="${x-40}" y="${582-fl}" width="38" height="52" rx="3" fill="#fff" opacity=".8"/><rect x="${x+2}" y="${582-fl}" width="38" height="52" rx="3" fill="#fff" opacity=".6"/></g>`}
+  if(o.item==='phone') g+=`<g transform="translate(0,${br})"><rect x="${x-14}" y="582" width="28" height="46" rx="6" fill="#263238"/><rect x="${x-10}" y="586" width="20" height="36" rx="3" fill="${Math.sin(t*4+ph)>0?'#9fd3e8':'#bfe6f3'}"/></g>`;
+  if(o.item==='cane') g+=`<path d="M${x+78} 740 L${x+78} 590 Q${x+78} 572 ${x+62} 572" fill="none" stroke="#8d6e63" stroke-width="8" stroke-linecap="round"/>`;
+  return `<g transform="translate(${x},742) scale(${k}) translate(${-x},-742)">${g}</g>`;
+}
+function waiting(t){
+  let s=`<rect x="60" y="392" width="420" height="30" rx="15" fill="#d7e6e1"/><text x="270" y="413" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="18" fill="#6b7d79" letter-spacing="3">SALA DE ESPERA</text>`;
+  s+=seated(130,{chair:'#7fb3d5',shirt:'#ff8a65',hair:'#5a3d2b',style:'bob',skin:'#f5d3b3',item:'mag'},t,0);
+  s+=seated(270,{chair:'#7fb3d5',shirt:'#9575cd',hair:'#2b211c',style:'short',skin:'#c98d5f',item:'phone'},t,1.7);
+  s+=seated(410,{chair:'#7fb3d5',shirt:'#4db6ac',hair:'#cfd8dc',elder:true,skin:'#f2c9a0',item:'cane',mood:'happy'},t,3.1);
+  return s;
+}
+
+// SAR (Servicio de Atención Primaria de Urgencia) emergency entrance, used by the START scene
+function sarRoom(t){
+  let s=`<rect x="0" y="0" width="1920" height="1080" fill="url(#wall)"/>`;
+  s+=`<rect x="0" y="560" width="1920" height="200" fill="#e2eeea"/><rect x="0" y="556" width="1920" height="8" fill="#d2e2dc"/>`;
+  s+=`<rect x="0" y="236" width="1920" height="14" fill="#e5564f" opacity=".85"/><rect x="0" y="254" width="1920" height="4" fill="#e5564f" opacity=".5"/>`;
+  for(const lx of [520,1300]) s+=`<line x1="${lx}" y1="10" x2="${lx}" y2="40" stroke="#9fb3ad" stroke-width="3"/><path d="M${lx-46} 70 Q${lx} 28 ${lx+46} 70 Z" fill="#ffffff"/><ellipse cx="${lx}" cy="72" rx="46" ry="8" fill="#fff4d6"/>`;
+  s+=`<rect x="0" y="760" width="1920" height="320" fill="url(#floor)"/>`;
+  for(let x=-200;x<2100;x+=220) s+=`<line x1="${x}" y1="760" x2="${x-410}" y2="1080" stroke="#c9d8d3" stroke-width="2"/>`;
+  // triage guide lines on the floor
+  [['#e5564f',800],['#f0a924',824],['#3fae6a',848]].forEach(([c,y])=>{s+=`<path d="M0 ${y} L1560 ${y} Q1590 ${y} 1600 ${y-20} L1610 772" fill="none" stroke="${c}" stroke-width="10" stroke-linecap="round" opacity=".75"/>`;});
+  // SAR sign
+  s+=`<g filter="url(#sh)"><rect x="1240" y="282" width="600" height="96" rx="16" fill="#ffffff"/></g><rect x="1240" y="282" width="110" height="96" rx="16" fill="#e5564f"/><rect x="1300" y="282" width="50" height="96" fill="#e5564f"/>`;
+  s+=`<rect x="1283" y="306" width="24" height="48" rx="4" fill="#fff"/><rect x="1271" y="318" width="48" height="24" rx="4" fill="#fff"/>`;
+  s+=`<text x="1378" y="334" font-family="Poppins" font-weight="800" font-size="44" fill="#e5564f">SAR</text><text x="1482" y="334" font-family="Poppins" font-weight="700" font-size="40" fill="#1d2b29">Urgencia 24 h</text>`;
+  s+=`<text x="1378" y="364" font-family="Poppins" font-weight="600" font-size="19" fill="#6b7d79">Servicio de Atención Primaria de Urgencia</text>`;
+  // automatic sliding glass doors
+  const op=18+8*Math.sin(t*1.2);
+  s+=`<rect x="1290" y="404" width="500" height="358" rx="8" fill="#b7c6c2"/><rect x="1304" y="418" width="472" height="344" fill="#dcebe8"/>`;
+  s+=`<rect x="1304" y="418" width="472" height="344" fill="#eaf6f3"/><rect x="1330" y="560" width="120" height="150" rx="10" fill="#cfe0dc"/><rect x="1620" y="540" width="130" height="80" rx="8" fill="#cfe0dc"/>`;
+  s+=`<rect x="${1304-op}" y="418" width="236" height="344" fill="#cfeaf5" opacity=".85" stroke="#9fb3ad" stroke-width="4"/><rect x="${1540+op}" y="418" width="236" height="344" fill="#cfeaf5" opacity=".85" stroke="#9fb3ad" stroke-width="4"/>`;
+  s+=`<rect x="1304" y="470" width="472" height="36" fill="#e5564f" opacity=".9"/><text x="1540" y="497" text-anchor="middle" font-family="Poppins" font-weight="800" font-size="26" fill="#fff" letter-spacing="6">URGENCIA</text>`;
+  s+=`<path d="M${1330-op} 540 L${1370-op} 440 M${1580+op} 560 L${1620+op} 460" stroke="#ffffff" stroke-width="8" opacity=".7" stroke-linecap="round"/>`;
+  // ambulance bay sign (left)
+  s+=`<rect x="70" y="290" width="330" height="64" rx="14" fill="#1d2b29"/><text x="235" y="332" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="26" fill="#fff">🚑 Ingreso ambulancias</text>`;
+  return s;
+}
+function room(t,open=[0,0,0],wait=false,ent=null){
+  let s=`<rect x="0" y="0" width="1920" height="1080" fill="url(#wall)"/>`;
+  s+=`<rect x="0" y="560" width="1920" height="200" fill="#e2eeea"/><rect x="0" y="556" width="1920" height="8" fill="#d2e2dc"/>`;
+  // lamps
+  for(const lx of [520,1300]) s+=`<line x1="${lx}" y1="10" x2="${lx}" y2="40" stroke="#9fb3ad" stroke-width="3"/><path d="M${lx-46} 70 Q${lx} 28 ${lx+46} 70 Z" fill="#ffffff"/><ellipse cx="${lx}" cy="72" rx="46" ry="8" fill="#fff4d6"/><ellipse cx="${lx}" cy="90" rx="160" ry="40" fill="#fff6dc" opacity=".35"/>`;
+  // floor
+  s+=`<rect x="0" y="760" width="1920" height="320" fill="url(#floor)"/>`;
+  for(let x=-200;x<2100;x+=220) s+=`<line x1="${x}" y1="760" x2="${x-410}" y2="1080" stroke="#c9d8d3" stroke-width="2"/>`;
+  // plant (left)
+  if(ent!==null){
+    const gx=150,gy=330,gw=330,gh=432, sl=ent*118;
+    s+=`<rect x="${gx}" y="${gy}" width="${gw}" height="${gh}" rx="12" fill="#cfdcd8"/><rect x="${gx+16}" y="${gy+16}" width="${gw-32}" height="${gh-16}" fill="#e3f3f8"/>`;
+    s+=`<ellipse cx="${gx+90}" cy="${gy+gh-30}" rx="70" ry="40" fill="#9fd4a8"/><ellipse cx="${gx+230}" cy="${gy+gh-24}" rx="80" ry="36" fill="#8cc99a"/><rect x="${gx+16}" y="${gy+16}" width="${gw-32}" height="120" fill="#cfeaf5"/>`;
+    s+=`<clipPath id="entc"><rect x="${gx+16}" y="${gy+16}" width="${gw-32}" height="${gh-16}"/></clipPath><g clip-path="url(#entc)">`;
+    const pw=(gw-32)/2;
+    for(const [px0,dir] of [[gx+16-sl,-1],[gx+16+pw+sl,1]]){
+      s+=`<rect x="${px0}" y="${gy+16}" width="${pw}" height="${gh-16}" fill="#a9d8ea" opacity=".55"/><rect x="${px0}" y="${gy+16}" width="${pw}" height="${gh-16}" fill="none" stroke="#90a4ae" stroke-width="6"/>`;
+      s+=`<path d="M${px0+20} ${gy+90} L${px0+70} ${gy+40} M${px0+30} ${gy+140} L${px0+110} ${gy+60}" stroke="#ffffff" stroke-width="6" opacity=".6" stroke-linecap="round"/>`;
+      s+=`<rect x="${dir<0?px0+pw-22:px0+12}" y="${gy+200}" width="10" height="80" rx="5" fill="#78909c"/>`;
+    }
+    s+=`</g>`;
+    s+=`<rect x="${gx+70}" y="${gy-58}" width="190" height="44" rx="22" fill="${C.brand}"/><text x="${gx+165}" y="${gy-27}" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="24" fill="#fff" letter-spacing="3">ENTRADA</text>`;
+    s+=`<rect x="${gx+20}" y="${gy+gh-2}" width="${gw-40}" height="14" rx="7" fill="#b9cbc6"/>`;
+  }
+  if(!wait&&ent===null) s+=`<g transform="translate(80,0)"><path d="M-30 680 L30 680 L22 760 L-22 760 Z" fill="#d98b62"/><ellipse cx="0" cy="610" rx="44" ry="70" fill="#3fae6a"/><ellipse cx="-34" cy="640" rx="30" ry="50" fill="#2f9a5a" transform="rotate(-25 -34 640)"/><ellipse cx="34" cy="640" rx="30" ry="50" fill="#57c27f" transform="rotate(25 34 640)"/></g>`;
+  // waiting area (background, slightly smaller = further back)
+  if(wait) s+=waiting(t);
+  // doors: refined arched doors with frame molding, panels, window, lever handle
+  DOORS.forEach(([x,name,col,ico],i)=>{
+    const o=open[i]||0, W=200, cx=x+W/2, top=380;
+    const arch=(x0,w,y0,yb=760)=>`M${x0} ${yb} L${x0} ${y0+w/2} A${w/2} ${w/2} 0 0 1 ${x0+w} ${y0+w/2} L${x0+w} ${yb} Z`;
+    const dark=shade(col,-.28), light=shade(col,.22);
+    // wall sign + lamp above
+    const sw=tw(name,23,700)+74;
+    s+=`<g filter="url(#sh)"><rect x="${cx-sw/2}" y="${top-104}" width="${sw}" height="52" rx="14" fill="#ffffff"/></g>`;
+    s+=`<rect x="${cx-sw/2}" y="${top-104}" width="8" height="52" rx="4" fill="${col}"/>`;
+    s+=`<text x="${cx-sw/2+18}" y="${top-70}" font-size="23">${ico}</text><text x="${cx-sw/2+52}" y="${top-70}" font-family="Poppins" font-weight="700" font-size="23" fill="${C.ink}">${name}</text>`;
+    const lit=Math.sin(t*3+i)>-0.2;
+    s+=`<rect x="${cx-18}" y="${top-40}" width="36" height="14" rx="7" fill="#90a4ae"/><ellipse cx="${cx}" cy="${top-24}" rx="12" ry="6" fill="${lit?'#a6f4be':'#d7efe0'}"/>`;
+    if(lit) s+=`<ellipse cx="${cx}" cy="${top-14}" rx="40" ry="12" fill="#a6f4be" opacity=".25"/>`;
+    // floor shadow + frame (outer molding, inner reveal)
+    s+=`<ellipse cx="${cx}" cy="768" rx="118" ry="12" fill="#1d2b29" opacity=".10"/>`;
+    s+=`<path d="${arch(x-18,W+36,top-18,766)}" fill="#e7efec"/><path d="${arch(x-18,W+36,top-18,766)}" fill="none" stroke="#c7d6d1" stroke-width="3"/>`;
+    s+=`<path d="${arch(x-8,W+16,top-8,764)}" fill="#c9d8d3"/>`;
+    s+=`<path d="${arch(x,W,top)}" fill="#22302e"/>`;
+    s+=`<clipPath id="dc${i}"><path d="${arch(x,W,top)}"/></clipPath>`;
+    const dw=W*(1-0.82*o);
+    let d=`<rect x="${x}" y="${top}" width="${dw}" height="${760-top}" fill="${shade(col,.06)}"/>`;
+    if(o<0.55){
+      const k=dw/W, px=x+18*k, pw=(W-36)*k;
+      // upper arched panel with porthole window
+      d+=`<path d="${arch(px,pw,top+22,520)}" fill="${shade(col,.06)}"/>`;
+      d+=`<path d="M${px} 520 L${px} ${top+22+pw/2} A${pw/2} ${pw/2} 0 0 1 ${px+pw} ${top+22+pw/2}" fill="none" stroke="${light}" stroke-width="3" opacity=".35"/>`;
+      d+=`<path d="M${px+pw} ${top+22+pw/2} L${px+pw} 520 L${px} 520" fill="none" stroke="${dark}" stroke-width="3" opacity=".25"/>`;
+      const wy=top+88, wr=40*k;
+      d+=`<circle cx="${px+pw/2}" cy="${wy}" r="${wr+6}" fill="${dark}"/><circle cx="${px+pw/2}" cy="${wy}" r="${wr}" fill="#d7eef6"/>`;
+      d+=`<path d="M${px+pw/2-wr*0.6} ${wy+wr*0.1} L${px+pw/2-wr*0.1} ${wy-wr*0.6} M${px+pw/2-wr*0.3} ${wy+wr*0.5} L${px+pw/2+wr*0.4} ${wy-wr*0.3}" stroke="#ffffff" stroke-width="${5*k}" stroke-linecap="round" opacity=".9"/>`;
+      // lower raised panel
+      d+=`<rect x="${px}" y="546" width="${pw}" height="160" rx="10" fill="${shade(col,.06)}"/>`;
+      d+=`<path d="M${px} 706 L${px} 556 Q${px} 546 ${px+10} 546 L${px+pw} 546" fill="none" stroke="${light}" stroke-width="3" opacity=".35"/>`;
+      d+=`<path d="M${px+pw} 556 L${px+pw} 696 Q${px+pw} 706 ${px+pw-10} 706 L${px} 706" fill="none" stroke="${dark}" stroke-width="3" opacity=".25"/>`;
+      // kick plate
+      d+=`<rect x="${x}" y="722" width="${dw}" height="38" fill="#cfd8dc"/><rect x="${x}" y="722" width="${dw}" height="4" fill="#ffffff" opacity=".7"/>`;
+      // lever handle
+      const hx=x+dw-30*k;
+      d+=`<rect x="${hx-8}" y="590" width="16" height="60" rx="8" fill="#b0bec5"/><rect x="${hx-38*k}" y="604" width="${44*k}" height="12" rx="6" fill="#eceff1"/><circle cx="${hx}" cy="610" r="10" fill="#eceff1" stroke="#90a4ae" stroke-width="2"/>`;
+      // soft vertical sheen
+      d+=`<rect x="${x+8}" y="${top+30}" width="${10*k}" height="${720-top}" rx="5" fill="#ffffff" opacity=".12"/>`;
+    }
+    s+=`<g clip-path="url(#dc${i})">${d}</g>`;
+  });
+  // desk is drawn by scene (after nurse)
+  return s;
+}
+function desk(){
+  let s=`<rect x="690" y="604" width="400" height="22" rx="8" fill="#fbf3e2"/>`;
+  s+=`<rect x="700" y="620" width="380" height="146" rx="10" fill="url(#deskf)"/><rect x="770" y="666" width="240" height="54" rx="27" fill="${C.brand}"/>`;
+  s+=`<text x="890" y="703" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="28" fill="#fff" letter-spacing="3">RECEPCIÓN</text>`;
+  s+=`<rect x="1000" y="566" width="44" height="40" rx="8" fill="#d98b62"/><ellipse cx="1022" cy="556" rx="26" ry="20" fill="#3fae6a"/>`;
+  s+=`<rect x="760" y="580" width="120" height="26" rx="4" fill="#fff"/><rect x="766" y="574" width="108" height="8" rx="3" fill="#e7eeec"/>`;
+  return s;
+}
+function monitorBack(){return `<rect x="860" y="512" width="150" height="92" rx="10" fill="#263238"/><rect x="926" y="598" width="18" height="10" fill="#263238"/>`}
+function rulecard(x,y,k){const w=560,h=210;
+  return scaleAt(`<g filter="url(#sh)"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="26" fill="#fff"/></g><rect x="${x}" y="${y}" width="12" height="${h}" rx="6" fill="${C.brand}"/>
+  <text x="${x+40}" y="${y+60}" font-family="Poppins" font-weight="700" font-size="40" fill="${C.brand}">REGLA · MEDICINA</text>
+  <text x="${x+40}" y="${y+120}" font-family="Poppins" font-weight="500" font-size="38" fill="${C.ink}">✓ Solo adultos</text>
+  <text x="${x+40}" y="${y+172}" font-family="Poppins" font-weight="500" font-size="38" fill="${C.ink}">✓ Fiebre: agendar aquí</text>`,x+w/2,y+h/2,k)}
+const DEFS0=`<filter id="sh" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#1d2b29" flood-opacity=".16"/></filter>
+<linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbfdfc"/><stop offset="1" stop-color="#eef5f2"/></linearGradient>
+<linearGradient id="floor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dbe7e3"/><stop offset="1" stop-color="#cbdad5"/></linearGradient>
+<linearGradient id="deskf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6e6"/><stop offset="1" stop-color="#f1e2c4"/></linearGradient>
+<linearGradient id="home" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff8ee"/><stop offset="1" stop-color="#fbeedd"/></linearGradient>`;
+// ---------------- scenes ----------------
+const YEL='#f0a924', RED='#e5564f', TEAL='#1f8a70', GRN='#3fae6a', PUR='#9b7fe6', BLUE='#4f8ff0';
+const OLD={
+ day1:{dur:8,kick:'DAY 1 · DÍA 1',es:'Llega un paciente. ¿Al box correcto?',lines:['A patient','walks in.','Right <em>room?</em>'],draw(t){
+   let px, walk=0, op=1;
+   if(t<2.4){px=lerp(-140,560,ease(t/2.4));walk=1} else if(t<6.0){px=560} else {px=lerp(560,1250,ease((t-6.0)/1.8));walk=t<7.8?1:0}
+   const open=[cl((px-1000)/200),0,0]; if(px>1170) op=1-cl((px-1170)/80);
+   let s=room(t,open,true)+monitorBack()+nurse(930,{point:(t>=5.0&&t<7.4)?'right':null})+desk();
+   s+=person({x:px,fy:760,shirt:YEL,pants:'#3d4f75',hair:'#5a3d2b',style:'short',walk,phase:t*9,op,mood:t<3?'worried':'happy',nod:(t>=3.0&&t<4.4)?Math.sin((t-3.0)*9)*7:0});
+   if(t>=0.3&&t<2.6) s+=scaleAt(bubble(1000,96,['¡Buenos días!','¿Tiene hora?'],420),1040,300,pop(0.3,t));
+   if(t>=2.6) s+=rulecard(1120,40,pop(2.6,t));
+   if(t>=3.0&&t<5.4) s+=scaleAt(bubble(60,170,['Sí, soy adulto.','Tengo fiebre.'],420),100,320,pop(3.0,t));
+   if(t>=5.0&&t<6.8) s+=scaleAt(tag(600,230,'Adulto → Medicina',YEL),700,260,pop(5.0,t));
+   return s}},
+ patient:{dur:6,kick:'PATIENT MODE · MODO PACIENTE',es:'¿No puede venir? Cambie su hora.',lines:["Can't come?",'<em>Reschedule.</em>'],draw(t){
+   let s=`<rect x="0" y="0" width="1920" height="1080" fill="url(#home)"/>`;
+   s+=`<rect x="120" y="120" width="320" height="300" rx="14" fill="#cfe8f5"/><rect x="120" y="120" width="320" height="300" rx="14" fill="none" stroke="#fff" stroke-width="14"/><line x1="280" y1="120" x2="280" y2="420" stroke="#fff" stroke-width="10"/><path d="M100 110 Q140 260 110 430 L150 430 Q170 260 150 110 Z" fill="#f4a58a"/><path d="M460 110 Q420 260 450 430 L410 430 Q390 260 410 110 Z" fill="#f4a58a"/>`;
+   s+=`<rect x="0" y="760" width="1920" height="320" fill="#e9d6bd"/>`;
+   s+=`<rect x="620" y="560" width="360" height="160" rx="40" fill="#8fb6c9"/><rect x="600" y="620" width="400" height="120" rx="36" fill="#7aa5ba"/><rect x="620" y="736" width="20" height="26" fill="#5b7f90"/><rect x="960" y="736" width="20" height="26" fill="#5b7f90"/>`;
+   s+=person({x:430,fy:760,shirt:TEAL,pants:'#34434a',hair:'#2b211c',style:'long',phone:true,mood:t<2.6?'worried':'happy',skin:'#e0ac7e',nod:(t>=4.1&&t<5.2)?Math.sin((t-4.1)*9)*6:0});
+   if(t<2.6) s+=scaleAt(bubble(80,110,['Mañana no','puedo ir.'],380),120,240,pop(0.1,t));
+   // big phone
+   s+=`<g filter="url(#sh)"><rect x="1150" y="30" width="440" height="830" rx="60" fill="#1d2b29"/></g><rect x="1170" y="56" width="400" height="778" rx="44" fill="#f7fbfa"/>`;
+   s+=`<rect x="1170" y="56" width="400" height="120" rx="44" fill="${C.brand}"/><rect x="1170" y="130" width="400" height="46" fill="${C.brand}"/><text x="1370" y="132" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="40" fill="#fff">Su hora</text>`;
+   s+=`<text x="1370" y="236" text-anchor="middle" font-family="Poppins" font-weight="500" font-size="28" fill="#6b7d79">Mañana · 9:30 · Medicina</text>`;
+   if(t<4.0){
+     ['Confirmar','Anular','Cambiar hora'].forEach((lab,i)=>{const y=300+i*150, on=lab==='Cambiar hora'&&t>=3.0;
+       s+=`<g filter="url(#sh)"><rect x="1210" y="${y}" width="320" height="116" rx="26" fill="${on?C.gold:'#fff'}"/></g><text x="1370" y="${y+72}" text-anchor="middle" font-family="Poppins" font-weight="600" font-size="40" fill="${C.ink}">${lab}</text>`});
+     if(t>=2.4&&t<3.6){const u=cl((t-2.4)/0.6); const fx=lerp(1700,1420,ease(u)), fy=lerp(900,650,ease(u));
+       s+=`<circle cx="${fx}" cy="${fy}" r="30" fill="#fff" stroke="${C.ink}" stroke-width="6" opacity=".95"/>`;
+       if(t>=3.0){const r=30+80*eo((t-3.0)/0.6); s+=`<circle cx="1420" cy="650" r="${r}" fill="none" stroke="${C.gold}" stroke-width="6" opacity="${1-cl((t-3.0)/0.6)}"/>`}}
+   } else {
+     const k=pop(4.0,t);
+     s+=scaleAt(`<circle cx="1370" cy="420" r="90" fill="${C.brand}"/><path d="M1325 420 L1358 452 L1418 388" fill="none" stroke="#fff" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+       <text x="1370" y="590" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="40" fill="${C.brand}">¡Hora cambiada!</text>
+       <text x="1370" y="650" text-anchor="middle" font-family="Poppins" font-weight="500" font-size="38" fill="${C.ink}">Martes · 10:00</text>`,1370,500,k);
+   }
+   return s}},
+ day2:{dur:7,kick:'DAY 2 · DÍA 2',es:'Dos pacientes. Primero la urgencia.',lines:['Two patients.','Emergency','<em>first.</em>'],draw(t){
+   let s=room(t,[0,0,0],false,t<2.4?1:1-ease((t-2.4)/0.7))+monitorBack()+nurse(930,{point:(t>=4.5&&t<6.4)?'left':null})+desk();
+   const ax=lerp(-150,600,ease(Math.min(t,2.0)/2.0)); let bx=lerp(-280,370,ease(Math.min(t,2.0)/2.0));
+   if(t>=4.5) bx=lerp(370,770,ease((t-4.5)/1.5));
+   s+=person({x:ax,fy:760,shirt:BLUE,pants:'#34434a',hair:'#8a5a3b',style:'bob',walk:t<2?1:0,phase:t*9,skin:'#f5d3b3'});
+   {const sway=-5+Math.sin(t*5)*2.5; s+=`<g transform="rotate(${sway} ${bx} 760)">`+person({x:bx,fy:760,shirt:RED,pants:'#3d4f75',hair:'#cfd8dc',elder:true,walk:(t<2||(t>=4.5&&t<6))?0.6:0,phase:t*7+1,mood:'worried',skin:'#e0ac7e',pain:true,tp:t})+`</g>`;}
+   if(t>=2.0) s+=scaleAt(tag(bx,170,'URGENCIA',RED,40,'middle'),bx,260,pop(2.0,t));
+   if(t>=2.2&&t<4.5) s+=scaleAt(bubble(1000,96,['Son dos.','¿Quién va primero?'],460),1040,280,pop(2.2,t));
+   if(t>=4.5) s+=scaleAt(tag(1010,120,'Primero la urgencia',YEL),1150,200,pop(4.5,t));
+   return s}},
+ day3:{dur:7,kick:'DAY 3 · DÍA 3',es:'Alguien anula su hora. Avanza la lista de espera.',lines:['One cancels.','The waitlist','<em>moves.</em>'],draw(t){
+   let s=room(t)+monitorBack()+nurse()+desk();
+   if(t<2.6) s+=person({x:560,fy:760,shirt:TEAL,pants:'#34434a',hair:'#2b211c',style:'short',skin:'#c98d5f'});
+   else if(t<3.8) s+=person({x:lerp(560,-200,ease((t-2.6)/1.2)),fy:760,shirt:TEAL,pants:'#34434a',hair:'#2b211c',style:'short',walk:1,phase:t*9,skin:'#c98d5f'});
+   if(t<2.3) s+=scaleAt(bubble(60,170,['Necesito anular','mi hora.'],440),100,320,pop(0.1,t));
+   // calendar
+   s+=`<g filter="url(#sh)"><rect x="1250" y="20" width="580" height="236" rx="26" fill="#fff"/></g><text x="1290" y="70" font-family="Poppins" font-weight="700" font-size="40" fill="${C.ink}">Hoy</text>`;
+   for(let r=0;r<2;r++)for(let c=0;c<3;c++){const x=1290+c*176,y=92+r*78; let col='#e3ece9', lab='';
+     if(r===0&&c===1){col=t<2.5?C.brand:GRN; lab=t<2.5?'9:30':'LIBRE'}
+     const k=(r===0&&c===1&&t>=2.5)?pop(2.5,t):1;
+     s+=scaleAt(`<rect x="${x}" y="${y}" width="156" height="64" rx="14" fill="${col}"/>`+(lab?(lab.includes('·')?`<text x="${x+78}" y="${y+40}" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="30" fill="#fff">FREE</text><text x="${x+78}" y="${y+70}" text-anchor="middle" font-family="Poppins" font-weight="600" font-size="22" fill="#fff" opacity=".9">LIBRE</text>`:`<text x="${x+78}" y="${y+44}" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="30" fill="#fff">${lab}</text>`):''),x+78,y+46,k)}
+   if(t>=2.5&&t<4.2) s+=scaleAt(tag(880,170,'¡Hora liberada!',YEL),1000,260,pop(2.5,t));
+   const cols=[[GRN,'#8a5a3b','bob','#f5d3b3'],[YEL,'#2b211c','short','#e0ac7e'],[PUR,'#cfd8dc','elder','#f2c9a0'],[BLUE,'#5a3d2b','long','#c98d5f']], tg=[560,420,280,140];
+   for(let i=3;i>=0;i--){const st=3.4+i*0.3; if(t>=st){const u=(t-st)/1.2; const [sh,hr,stl,sk]=cols[i];
+     s+=person({x:lerp(-200,tg[i],ease(u)),fy:760,shirt:sh,hair:hr,style:stl==='elder'?'short':stl,elder:stl==='elder',skin:sk,walk:u<1?1:0,phase:t*9+i,mood:i===0?'happy':'worried'})}}
+   if(t>=4.2) s+=scaleAt(tag(40,220,'Lista de espera: 4',GRN),260,260,pop(4.2,t));
+   if(t>=5.0) s+=scaleAt(bubble(560,110,['¿Hay alguna hora?','¡Llevamos rato esperando!'],660),680,260,pop(5.0,t));
+   return s}},
+ bonus:{dur:6,kick:'BONUS',es:'¡Llegó la ambulancia! Clasifique con START.',lines:['Ambulance!','Sort them','with <em>START.</em>'],draw(t){
+   let s=`<g filter="url(#desat)">`+sarRoom(t)+`</g>`+nurse(1080);
+   const ax=lerp(-620,-200,ease(Math.min(t,1.2)/1.2));
+   s+=`<g transform="translate(${ax},0)"><ellipse cx="220" cy="764" rx="230" ry="16" fill="#1d2b29" opacity=".12"/>
+     <rect x="0" y="540" width="330" height="200" rx="22" fill="#fff"/><path d="M330 600 L420 600 Q450 600 456 640 L460 740 L330 740 Z" fill="#f4f7f6"/>
+     <path d="M350 612 L412 612 Q430 612 434 640 L436 668 L350 668 Z" fill="#9fd3e8"/>
+     <rect x="0" y="650" width="460" height="24" fill="${RED}"/><rect x="110" y="566" width="22" height="64" rx="4" fill="${RED}"/><rect x="89" y="587" width="64" height="22" rx="4" fill="${RED}"/>
+     <rect x="150" y="520" width="80" height="22" rx="8" fill="${Math.floor(t*6)%2?RED:BLUE}"/>
+     <circle cx="90" cy="742" r="40" fill="#263238"/><circle cx="90" cy="742" r="16" fill="#b0bec5"/><circle cx="370" cy="742" r="40" fill="#263238"/><circle cx="370" cy="742" r="16" fill="#b0bec5"/></g>`;
+   if(t<1.6) s+=`<circle cx="${ax+190}" cy="530" r="${80+40*Math.sin(t*20)}" fill="${Math.floor(t*6)%2?RED:BLUE}" opacity=".18"/>`;
+   const ent=(st)=>ease((t-st)/0.6);
+   // RED: lying on a stretcher, breathing fast
+   if(t>=1.3){const c=lerp(ax+320,340,ent(1.3)); const br=Math.sin(t*14);
+     let g=`<ellipse cx="${c}" cy="766" rx="240" ry="14" fill="#1d2b29" opacity=".10"/>
+       <line x1="${c-190}" y1="706" x2="${c-190}" y2="742" stroke="#90a4ae" stroke-width="10"/><line x1="${c+190}" y1="706" x2="${c+190}" y2="742" stroke="#90a4ae" stroke-width="10"/>
+       <rect x="${c-236}" y="696" width="472" height="14" rx="7" fill="#90a4ae"/>
+       <circle cx="${c-190}" cy="750" r="17" fill="#37474f"/><circle cx="${c+190}" cy="750" r="17" fill="#37474f"/><circle cx="${c-190}" cy="750" r="6" fill="#b0bec5"/><circle cx="${c+190}" cy="750" r="6" fill="#b0bec5"/>
+       <rect x="${c-232}" y="664" width="464" height="38" rx="18" fill="#ffffff"/><rect x="${c-232}" y="690" width="464" height="12" rx="6" fill="#e3ebe9"/>
+       <ellipse cx="${c-168}" cy="660" rx="72" ry="24" fill="#f8fbfa"/>
+       <ellipse cx="${c-200}" cy="636" rx="36" ry="36" fill="#2b211c"/>
+       <ellipse cx="${c-174}" cy="628" rx="48" ry="38" fill="#e0ac7e"/>
+       <path d="M${c-232} 640 Q${c-226} 600 ${c-196} 592 Q${c-212} 612 ${c-214} 646 Z" fill="#2b211c"/>
+       <path d="M${c-168} 594 Q${c-160} 568 ${c-146} 592 Z" fill="#e0ac7e"/>
+       <path d="M${c-188} 598 L${c-174} 594" stroke="#2b211c" stroke-width="4" stroke-linecap="round"/>
+       <path d="M${c-190} 606 q7 5 14 0" fill="none" stroke="#263238" stroke-width="3.5" stroke-linecap="round"/>
+       <ellipse cx="${c-190}" cy="634" rx="9" ry="12" fill="#d39a6c"/><path d="M${c-192} 630 q4 4 0 9" fill="none" stroke="#b07a52" stroke-width="2"/>
+       <circle cx="${c-160}" cy="622" r="7" fill="#f29a9a" opacity=".5"/>
+       <ellipse cx="${c-136}" cy="608" rx="${5+1.5*Math.abs(br)}" ry="${4+2.5*Math.abs(br)}" fill="#8d4a3a"/>
+       <g transform="rotate(-25 ${c-208} 600)"><rect x="${c-224}" y="590" width="34" height="22" rx="6" fill="#fff" stroke="#dfe6e4" stroke-width="2"/><circle cx="${c-207}" cy="601" r="4.5" fill="${RED}"/></g>
+       <rect x="${c-140}" y="612" width="150" height="64" rx="30" fill="${lg(RED)}"/>
+       <rect x="${c-30}" y="618" width="262" height="58" rx="28" fill="${lg('#7fb3d5')}"/>
+       <ellipse cx="${c+214}" cy="622" rx="24" ry="30" fill="#8cbfdf"/>
+       <rect x="${c-118}" y="640" width="130" height="26" rx="13" fill="${shade(RED,-.12)}"/><circle cx="${c+16}" cy="652" r="15" fill="#e0ac7e"/>`;
+     g+=`<path d="M${c-140} ${582-6*br} q8 -7 16 0 q8 7 16 0" fill="none" stroke="${RED}" stroke-width="4" opacity="${.5+.5*Math.abs(br)}"/>`;
+     s+=g;}
+   // YELLOW: side-view wheelchair, leg in a cast stretched out
+   if(t>=1.5){const c=lerp(ax+320,725,ent(1.5));
+     let g=`<ellipse cx="${c+20}" cy="766" rx="150" ry="13" fill="#1d2b29" opacity=".10"/>
+       <path d="M${c-74} 470 L${c-74} 700" stroke="#78909c" stroke-width="10" stroke-linecap="round"/><rect x="${c-104}" y="462" width="34" height="16" rx="8" fill="#37474f"/>
+       <rect x="${c-84}" y="486" width="40" height="160" rx="12" fill="#455a64"/>`;
+     g+=person({x:c,fy:784,shirt:'#f0a924',hair:'#8a5a3b',style:'bob',legs:false,mood:'worried',skin:'#f5d3b3'});
+     g+=`<rect x="${c-74}" y="628" width="160" height="24" rx="10" fill="#546e7a"/>
+       <circle cx="${c-16}" cy="684" r="88" fill="none" stroke="#37474f" stroke-width="14"/><circle cx="${c-16}" cy="684" r="74" fill="none" stroke="#b0bec5" stroke-width="4"/>`;
+     for(let k=0;k<8;k++){const an=k*Math.PI/4; g+=`<line x1="${c-16}" y1="684" x2="${c-16+72*Math.cos(an)}" y2="${684+72*Math.sin(an)}" stroke="#b0bec5" stroke-width="3"/>`}
+     g+=`<circle cx="${c-16}" cy="684" r="11" fill="#78909c"/>
+       <rect x="${c-40}" y="614" width="140" height="42" rx="20" fill="#34434a"/>
+       <g transform="rotate(8 ${c+82} 640)"><rect x="${c+64}" y="636" width="34" height="100" rx="16" fill="#34434a"/></g><ellipse cx="${c+96}" cy="740" rx="24" ry="11" fill="#263238"/>
+       <g transform="rotate(-62 ${c+76} 650)"><rect x="${c+54}" y="650" width="50" height="150" rx="22" fill="#ffffff" stroke="#dfe6e4" stroke-width="3"/><path d="M${c+58} 690 L${c+100} 690 M${c+58} 730 L${c+100} 730 M${c+58} 768 L${c+100} 768" stroke="#e3e9e7" stroke-width="3"/></g>
+       <path d="M${c+60} 742 L${c+150} 742" stroke="#78909c" stroke-width="8" stroke-linecap="round"/><line x1="${c+120}" y1="700" x2="${c+120}" y2="742" stroke="#78909c" stroke-width="6"/><circle cx="${c+120}" cy="750" r="13" fill="#37474f"/>
+       <rect x="${c-56}" y="588" width="120" height="14" rx="7" fill="#607d8b"/>`;
+     s+=g;}
+   // GREEN: walking, arm sling + small bandage
+   if(t>=1.7){const u=ent(1.7); s+=person({x:lerp(ax+320,968,u),fy:760,shirt:GRN,hair:'#5a3d2b',style:'short',walk:u<1?1:0,phase:t*10,bandage:true,sling:true});}
+   if(t>=1.8) s+=scaleAt(bubble(1180,30,['START: ¿Camina?','¿Respira?'],460),1220,170,pop(1.8,t));
+   const T=[['ROJO','Respira muy rápido',RED,2.5,300,370],['AMARILLO','No puede caminar','#f0a924',3.0,705,100],['VERDE','Puede caminar',GRN,3.5,968,236]];
+   T.forEach(([lab,desc,col,tt,x,y])=>{ if(t>=tt){
+     const dw=tw(desc,30,600)+40, ly=y+tagH(38,'')+8;
+     const g=tag(x,y,lab,col,38,'middle')+(window.LITE?'':`<g filter="url(#sh)"><rect x="${x-dw/2}" y="${ly}" width="${dw}" height="52" rx="14" fill="#fff"/></g><text x="${x}" y="${ly+36}" text-anchor="middle" font-family="Poppins" font-weight="600" font-size="30" fill="${C.ink}">${desc}</text>`);
+     s+=scaleAt(g,x,y+60,pop(tt,t)) }});
+   return s}},
+ play:{dur:4,kick:'',lines:[''],noText:true,draw(t){
+   let s=`<rect x="0" y="0" width="1920" height="1080" fill="#eef5f2"/>`;
+   s+=`<circle cx="${190+Math.sin(t*0.4)*40}" cy="${870+Math.cos(t*0.3)*30}" r="450" fill="${C.brand}" opacity=".10"/><circle cx="${1220+Math.cos(t*0.35)*50}" cy="${40+Math.sin(t*0.45)*30}" r="260" fill="${C.gold}" opacity=".16"/>`;
+   const tin=(d)=>{const a=eo((t-d)/0.35);return `opacity="${a}" transform="translate(0,${(1-a)*40})"`};
+   s+=`<g ${tin(0)}><rect x="150" y="280" width="${tw('YOUR TURN · LE TOCA',30)+64}" height="60" rx="30" fill="${C.brand}"/><text x="174" y="321" font-family="Poppins" font-weight="700" font-size="30" fill="#fff" letter-spacing="2">YOUR TURN · LE TOCA</text></g>`;
+   s+=`<g ${tin(0.1)}><text x="150" y="490" font-family="Poppins" font-weight="700" font-size="108" fill="${C.ink}" letter-spacing="-3">Your turn.</text></g>`;
+   const pw=tw('play!',108);
+   s+=`<g ${tin(0.2)}><rect x="${150+tw('Come ',108)-8}" y="556" width="${pw+16}" height="56" fill="${C.gold}" opacity=".6"/><text x="150" y="606" font-family="Poppins" font-weight="700" font-size="108" fill="${C.ink}" letter-spacing="-3">Come play!</text></g>`;
+   s+=`<g ${tin(0.5)}><text x="150" y="680" font-family="Poppins" font-weight="600" font-size="40" fill="${C.brand}">Le toca a usted. ¡Venga a jugar!</text></g>`;
+   s+=`<g ${tin(0.6)}><text x="150" y="790" font-family="Poppins" font-weight="600" font-size="46" fill="#6b7d79">The real game. Real choices.</text><text x="150" y="840" font-family="Poppins" font-weight="500" font-size="32" fill="${C.brand}">El juego real. Decisiones reales.</text></g>`;
+   const phone=(cx,cy,sc,rot,img,k)=>{const W=380,H=760; const x=cx-W/2, y=cy-H/2;
+     return `<g transform="translate(${cx},${cy}) rotate(${rot}) scale(${sc*k}) translate(${-cx},${-cy})"><g filter="url(#sh)"><rect x="${x-16}" y="${y-16}" width="${W+32}" height="${H+32}" rx="56" fill="#1d2b29"/></g>
+       <clipPath id="pc${Math.round(cx)}"><rect x="${x}" y="${y}" width="${W}" height="${H}" rx="42"/></clipPath><g clip-path="url(#pc${Math.round(cx)})"><rect x="${x}" y="${y}" width="${W}" height="${H}" fill="#fff"/>${img(x,y,W,H)}</g></g>`};
+   const im=(src)=>(x,y,W,H)=>`<image href="shots/${src}" x="${x}" y="${y}" width="${W}" height="${H}" preserveAspectRatio="xMidYMin slice"/>`;
+   const fl=Math.sin(t*1.6)*8;
+   s+=phone(1090,560+fl*0.6,0.8,-9,im('d1_after.png'),back((t-0.15)/0.5));
+   s+=phone(1700,560-fl*0.6,0.8,9,im('bonus_modal.png'),back((t-0.25)/0.5));
+   const seq=['title.png','patient1.png','appt2.png','bonus_board.png'];
+   const centerImg=(x,y,W,H)=>{const idx=Math.min(3,Math.floor(t)); const u=t-Math.floor(t); let g='';
+     if(idx>0&&u<0.25){const p=eo(u/0.25); g+=`<image href="shots/${seq[idx-1]}" x="${x}" y="${y-p*H}" width="${W}" height="${H}" preserveAspectRatio="xMidYMin slice"/>`;
+       g+=`<image href="shots/${seq[idx]}" x="${x}" y="${y+(1-p)*H}" width="${W}" height="${H}" preserveAspectRatio="xMidYMin slice"/>`;}
+     else g+=`<image href="shots/${seq[idx]}" x="${x}" y="${y}" width="${W}" height="${H}" preserveAspectRatio="xMidYMin slice"/>`;
+     return g};
+   s+=phone(1395,540+fl,1.0,0,centerImg,back(t/0.5));
+   return s}},
+ outro:{dur:5,kick:'',lines:[''],noText:true,draw(t){
+   let s=`<rect x="0" y="0" width="1920" height="1080" fill="#eef5f2"/>`;
+   s+=`<circle cx="${190+Math.sin(t*0.4)*40}" cy="${870+Math.cos(t*0.3)*30}" r="450" fill="${C.brand}" opacity=".10"/><circle cx="${1220+Math.cos(t*0.35)*50}" cy="${40+Math.sin(t*0.45)*30}" r="260" fill="${C.gold}" opacity=".16"/>`;
+   const tin=(d)=>{const a=eo((t-d)/0.35);return `opacity="${a}" transform="translate(0,${(1-a)*40})"`};
+   s+=scaleAt(logoIcon(222,300,144,(t-0.25)/0.4),222,300,back(t/0.45));
+   s+=`<g ${tin(0.05)}><text x="150" y="480" font-family="Poppins" font-weight="700" font-size="112" fill="${C.ink}" letter-spacing="-3"><tspan fill="${C.brand}">Misión</tspan> CESFAM</text></g>`;
+   const w=tw('Mi Hora, Tu Oportunidad',64);
+   s+=`<g ${tin(0.15)}><rect x="144" y="548" width="${w+12}" height="30" fill="${C.gold}" opacity=".55"/><text x="150" y="572" font-family="Poppins" font-weight="700" font-size="64" fill="${C.ink}">Mi Hora, Tu Oportunidad</text></g>`;
+   s+=`<g ${tin(0.45)}><text x="150" y="680" font-family="Poppins" font-weight="600" font-size="52" fill="#6b7d79">Scan to play in your browser.</text><text x="150" y="728" font-family="Poppins" font-weight="600" font-size="38" fill="${C.brand}">Escanee y juegue en su navegador.</text></g>`;
+   const pw=tw('Español (Chile)',32,600)+48;
+   s+=`<g ${tin(0.7)}><rect x="150" y="780" width="${pw}" height="58" rx="29" fill="#fff" stroke="${C.brand}" stroke-width="3"/><text x="174" y="819" font-family="Poppins" font-weight="600" font-size="32" fill="${C.brand}">Español (Chile)</text></g>`;
+   s+=`<g ${tin(0.9)}><text x="150" y="955" font-family="Poppins" font-weight="600" font-size="26" fill="#5e6e6b">Prototipo educativo con casos ficticios. No reemplaza la atención médica.</text><text x="150" y="992" font-family="Poppins" font-weight="500" font-size="22" fill="#7d8c89">Educational prototype with fictional cases. Not a substitute for medical care.</text></g>`;
+   const k=back((t-0.3)/0.5), fl=Math.sin(t*1.6)*8, cx=1430, cy=540;
+   s+=`<g transform="translate(${cx},${cy+fl}) scale(${k}) translate(${-cx},${-cy})"><g filter="url(#sh)"><rect x="${cx-310}" y="${cy-390}" width="620" height="780" rx="48" fill="#fff"/></g>
+     <image href="qr_cup.png" x="${cx-279}" y="${cy-363}" width="558" height="726" preserveAspectRatio="xMidYMid meet"/></g>`;
+   return s}},
+ key:{dur:4,kick:'',lines:[''],noText:true,draw(t){
+   let s=`<rect x="0" y="0" width="1920" height="1080" fill="#1d2b29"/>`;
+   const ap=(d)=>eo((t-d)/0.35);
+   // icons: clock (on time) and slot (freed)
+   const k1=back((t-0.05)/0.4), cx=840, cy=190;
+   s+=scaleAt(`<circle cx="${cx}" cy="${cy}" r="70" fill="#2f6b60"/><circle cx="${cx}" cy="${cy}" r="56" fill="none" stroke="#cfe6df" stroke-width="8"/><line x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy-36}" stroke="#ffffff" stroke-width="8" stroke-linecap="round"/><line x1="${cx}" y1="${cy}" x2="${cx+26}" y2="${cy+8}" stroke="#f0a924" stroke-width="8" stroke-linecap="round"/><circle cx="${cx+52}" cy="${cy+50}" r="24" fill="#3fae6a"/><path d="M${cx+40} ${cy+50} L${cx+49} ${cy+59} L${cx+64} ${cy+42}" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>`,cx,cy,k1);
+   const free=t>=1.5, k2=back((t-1.1)/0.4)*(free?back((t-1.5)/0.35):1), sx=1080, sy=190;
+   s+=scaleAt(`<rect x="${sx-110}" y="${sy-62}" width="220" height="124" rx="22" fill="${free?'#3fae6a':'#2f6b60'}"/>`+
+     (free?`<text x="${sx}" y="${sy+16}" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="44" fill="#fff">LIBRE</text>`
+          :`<text x="${sx}" y="${sy+16}" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="48" fill="#cfe6df">9:30</text>`),sx,sy,k2);
+   // line A: be on time
+   const a1=ap(0.1); s+=`<g opacity="${a1}" transform="translate(0,${(1-a1)*30})"><text x="960" y="420" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="96" fill="#ffffff">Llegue puntual.</text><text x="960" y="472" text-anchor="middle" font-family="Poppins" font-weight="600" font-size="36" fill="#9fd3c2">Be on time.</text></g>`;
+   // line B: cancel early
+   const a2=ap(1.1); s+=`<g opacity="${a2}" transform="translate(0,${(1-a2)*30})"><text x="960" y="600" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="72" fill="#ffffff">¿No puede venir? Avise con tiempo.</text><text x="960" y="650" text-anchor="middle" font-family="Poppins" font-weight="600" font-size="36" fill="#9fd3c2">Can't come? Cancel early — the slot goes to someone else.</text></g>`;
+   // slogan
+   const k3=back((t-2.2)/0.45), a3=cl((t-2.2)/0.2), w3=tw('Mi Hora, Tu Oportunidad',96);
+   if(t>=2.2) s+=`<g opacity="${a3}" transform="translate(960,820) scale(${k3}) translate(-960,-820)"><rect x="${960-w3/2-18}" y="800" width="${w3+36}" height="40" fill="#f0a924" opacity=".8"/><text x="960" y="832" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="96" fill="#ffffff">Mi Hora, Tu Oportunidad</text><text x="960" y="892" text-anchor="middle" font-family="Poppins" font-weight="600" font-size="36" fill="#9fd3c2">My appointment, your opportunity.</text></g>`;
+   return s}},
+ sting:{dur:2,kick:'',lines:[''],noText:true,draw(t){
+   let s=`<rect x="0" y="0" width="1920" height="1080" fill="url(#glow)"/>`;
+   for(let i=0;i<14;i++){const a=i*Math.PI/7+t*0.25, r1=260, r2=900; s+=`<path d="M${960+r1*Math.cos(a)} ${400+r1*Math.sin(a)} L${960+r2*Math.cos(a-0.05)} ${400+r2*Math.sin(a-0.05)} L${960+r2*Math.cos(a+0.05)} ${400+r2*Math.sin(a+0.05)} Z" fill="#ffffff" opacity="${0.035*eo(t/0.5)}"/>`;}
+   const k=back(t/0.45);
+   s+=scaleAt(logoIcon(960,330,240,(t-0.3)/0.4,true),960,330,k);
+   const a1=eo((t-0.35)/0.4), a2=eo((t-0.7)/0.35);
+   const wm=tw('Misión ',120)+tw('CESFAM',120), x0=960-wm/2;
+   s+=`<g opacity="${a1}" transform="translate(0,${(1-a1)*40})"><text x="${x0}" y="640" font-family="Poppins" font-weight="700" font-size="120" fill="#f0a924">Misión <tspan fill="#ffffff">CESFAM</tspan></text></g>`;
+   s+=`<text x="960" y="730" text-anchor="middle" font-family="Poppins" font-weight="600" font-size="52" fill="#9fd3c2" opacity="${a2}" letter-spacing="1">Mi Hora, Tu Oportunidad</text>`;
+   if(t>1.0&&t<1.7){const u=(t-1.0)/0.7, sx=lerp(300,1700,ease(u)); s+=`<path d="M${sx-60} 520 L${sx+20} 520 L${sx-40} 760 L${sx-120} 760 Z" fill="#ffffff" opacity="${0.18*Math.sin(Math.PI*u)}"/>`;}
+   if(t<0.18) s+=`<rect x="0" y="0" width="1920" height="1080" fill="#ffffff" opacity="${1-t/0.18}"/>`;
+   return s}},
+ question:{dur:3,kick:'',lines:[''],noText:true,draw(t){
+   let s=`<rect x="0" y="0" width="1920" height="1080" fill="#1d2b29"/>`;
+   const cx=960, cy=300, ang=Math.floor(t*2)*30;
+   s+=`<circle cx="${cx}" cy="${cy}" r="92" fill="none" stroke="#2f4a45" stroke-width="12"/>`;
+   for(let i=0;i<12;i++){const a=i*Math.PI/6; s+=`<line x1="${cx+70*Math.sin(a)}" y1="${cy-70*Math.cos(a)}" x2="${cx+80*Math.sin(a)}" y2="${cy-80*Math.cos(a)}" stroke="#4d6b65" stroke-width="5" stroke-linecap="round"/>`}
+   s+=`<line x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy-46}" stroke="#9fd3c2" stroke-width="8" stroke-linecap="round"/><line x1="${cx}" y1="${cy}" x2="${cx+60*Math.sin(ang*Math.PI/180)}" y2="${cy-60*Math.cos(ang*Math.PI/180)}" stroke="${C.gold}" stroke-width="5" stroke-linecap="round"/><circle cx="${cx}" cy="${cy}" r="9" fill="${C.gold}"/>`;
+   const L1=['Ever','waited','weeks'], L2=['to','see','a','doctor?'];
+   const put=(words,y,t0)=>{const sz=104; let tot=words.reduce((a,w)=>a+tw(w+' ',sz),0); let x=cx-tot/2;
+     words.forEach((w,i)=>{const st=t0+i*0.17, k=back((t-st)/0.3), a=cl((t-st)/0.15); const ww=tw(w,sz);
+       if(t>=st){ const hi=w==='weeks';
+         s+=`<g opacity="${a}" transform="translate(${x+ww/2},${y}) scale(${k}) translate(${-(x+ww/2)},${-y})">`+(hi?`<rect x="${x-8}" y="${y-34}" width="${ww+16}" height="40" fill="${C.gold}" opacity=".7"/>`:'')+`<text x="${x}" y="${y}" font-family="Poppins" font-weight="700" font-size="${sz}" fill="#fff">${w}</text></g>`}
+       x+=tw(w+' ',sz)});};
+   put(L1,560,0.1); put(L2,690,0.62);
+   {const a=eo((t-1.3)/0.4); s+=`<text x="960" y="810" text-anchor="middle" font-family="Poppins" font-weight="600" font-size="50" fill="#9fd3c2" opacity="${a}">¿Ha esperado semanas por una hora médica?</text>`;}
+   return s}},
+};
+// ---------------- brand: logo icon + camera ----------------
+function logoIcon(cx,cy,size,chk=1,onDark=false){
+  const k=size/220, x=cx-110*k, y=cy-110*k, S=(v)=>v*k;
+  let g=`<g transform="translate(${x},${y}) scale(${k})">`;
+  g+=`<rect x="0" y="8" width="220" height="220" rx="56" fill="#145f4e" opacity=".55"/>`;
+  g+=`<rect x="0" y="0" width="220" height="220" rx="56" fill="url(#logoGrad)"/>`;
+  g+=`<rect x="44" y="58" width="132" height="120" rx="18" fill="#ffffff"/>`;
+  g+=`<rect x="44" y="58" width="132" height="34" rx="18" fill="#f0a924"/><rect x="44" y="76" width="132" height="16" fill="#f0a924"/>`;
+  g+=`<rect x="74" y="42" width="14" height="32" rx="7" fill="#ffffff"/><rect x="132" y="42" width="14" height="32" rx="7" fill="#ffffff"/>`;
+  const L=150;
+  g+=`<path d="M78 134 L102 158 L144 112" fill="none" stroke="#1f8a70" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="${L}" stroke-dashoffset="${L*(1-cl(chk))}"/>`;
+  g+=`<path d="M188 20 L194 36 L210 42 L194 48 L188 64 L182 48 L166 42 L182 36 Z" fill="#ffd166"/>`;
+  g+=`</g>`; return g;
+}
+const LOGO_DEFS=`<linearGradient id="logoGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2aa585"/><stop offset="1" stop-color="#1a7a62"/></linearGradient>
+<radialGradient id="glow" cx="50%" cy="45%" r="60%"><stop offset="0" stop-color="#2a4a44"/><stop offset="1" stop-color="#16221f"/></radialGradient>`;
+const CAMS_OLD={
+ day1:[[0,1.0,960,540],[2.4,1.05,880,540],[5.0,1.08,1000,500],[6.4,1.08,1080,520],[8,1.05,1100,540]],
+ patient:[[0,1.0,960,540],[2.3,1.03,960,540],[3.0,1.12,1100,500],[4.8,1.12,1100,500],[6,1.05,960,540]],
+ day2:[[0,1.0,960,540],[1.9,1.04,860,540],[2.4,1.14,700,520],[4.3,1.14,700,520],[5.0,1.06,960,540],[7,1.04,960,540]],
+ day3:[[0,1.03,960,540],[2.2,1.03,960,540],[2.6,1.1,1150,420],[3.6,1.1,1150,420],[4.3,1.04,860,540],[7,1.07,800,540]],
+ bonus:[[0,1.0,960,540],[1.4,1.06,760,560],[2.4,1.06,760,560],[3.8,1.1,700,520],[6,1.07,860,540]],
+ key:[[0,1.0,960,540],[4,1.04,960,560]],
+ outro:[[0,1.0,960,540],[5,1.03,960,540]],
+ sting:[[0,1.08,960,540],[2,1.0,960,540]],
+};
+function camAt(n,t){const k=CAMS[n]; if(!k) return [1,960,540]; if(t<=k[0][0]) return k[0].slice(1);
+  let i=0; while(i<k.length-1&&t>k[i+1][0]) i++; if(i>=k.length-1) return k[k.length-1].slice(1);
+  const [t0,z0,x0,y0]=k[i],[t1,z1,x1,y1]=k[i+1]; const u=ease((t-t0)/(t1-t0)); return [lerp(z0,z1,u),lerp(x0,x1,u),lerp(y0,y1,u)];}
+
+// ================= v17 helpers =================
+function txt(x,y,t,size,fill,w=700,anchor='start',op=1){return `<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="Poppins" font-weight="${w}" font-size="${size}" fill="${fill}" opacity="${op}">${t}</text>`}
+function namePill(x,y,name,k=1){const w=tw(name,30,700)+44; return scaleAt(`<g filter="url(#sh)"><rect x="${x-w/2}" y="${y}" width="${w}" height="50" rx="25" fill="#1d2b29"/></g>`+txt(x,y+35,name,30,'#fff',700,'middle'),x,y+25,k)}
+function home(v=0,wx=120){
+  const wall=v?'#eaf2f8':'#fff8ee', floor=v?'#d6e2ea':'#ead8c0', cur=v?'#9fb8e0':'#f4a58a';
+  let s=`<rect x="0" y="0" width="1920" height="1080" fill="${wall}"/>`;
+  s+=`<g transform="translate(${wx-120},0)"><rect x="120" y="120" width="320" height="300" rx="14" fill="#cfe8f5"/><rect x="120" y="120" width="320" height="300" rx="14" fill="none" stroke="#fff" stroke-width="14"/><line x1="280" y1="120" x2="280" y2="420" stroke="#fff" stroke-width="10"/>`;
+  s+=`<path d="M100 110 Q140 260 110 430 L150 430 Q170 260 150 110 Z" fill="${cur}"/><path d="M460 110 Q420 260 450 430 L410 430 Q390 260 410 110 Z" fill="${cur}"/></g>`;
+  s+=`<rect x="0" y="760" width="1920" height="320" fill="${floor}"/><rect x="0" y="756" width="1920" height="8" fill="${shade(floor,-.08)}"/>`;
+  if(v){ s+=`<rect x="610" y="200" width="160" height="120" rx="8" fill="#fff" stroke="#c9b79c" stroke-width="10"/><path d="M625 305 L670 250 L700 280 L730 240 L755 305 Z" fill="#8cc99a"/><circle cx="735" cy="232" r="12" fill="#ffd166"/>`;
+    s+=`<rect x="760" y="600" width="230" height="130" rx="34" fill="#a1887f"/><rect x="740" y="560" width="60" height="170" rx="26" fill="#8d6e63"/><rect x="950" y="560" width="60" height="170" rx="26" fill="#8d6e63"/><rect x="780" y="728" width="18" height="30" fill="#6d4c41"/><rect x="952" y="728" width="18" height="30" fill="#6d4c41"/>`; }
+  else { s+=`<rect x="640" y="560" width="380" height="160" rx="40" fill="#8fb6c9"/><rect x="620" y="620" width="420" height="120" rx="36" fill="#7aa5ba"/><rect x="640" y="736" width="20" height="26" fill="#5b7f90"/><rect x="1000" y="736" width="20" height="26" fill="#5b7f90"/>`;
+    s+=`<g transform="translate(1060,0)"><path d="M-26 690 L26 690 L20 760 L-20 760 Z" fill="#d98b62"/><ellipse cx="0" cy="630" rx="38" ry="62" fill="#3fae6a"/><ellipse cx="-30" cy="655" rx="26" ry="44" fill="#2f9a5a" transform="rotate(-25 -30 655)"/></g>`; }
+  return s;
+}
+function phoneUI(x,y,w,h,inner){
+  let s=`<g filter="url(#sh)"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="56" fill="#1d2b29"/></g><rect x="${x+18}" y="${y+24}" width="${w-36}" height="${h-48}" rx="40" fill="#f7fbfa"/>`;
+  s+=`<rect x="${x+w/2-118}" y="${y+40}" width="236" height="34" rx="17" fill="#e3ece9"/>`+txt(x+w/2,y+64,'Simulación del juego',20,'#6b7d79',600,'middle');
+  return s+inner(x+18,y+84,w-36,h-108);
+}
+function finger(x,y,press=0,op=1){const r=30*(1-0.15*press);
+  return `<g opacity="${op}"><circle cx="${x}" cy="${y}" r="${r}" fill="#ffffff" fill-opacity="${press?0.75:0.45}" stroke="#1d2b29" stroke-width="5"/></g>`}
+function hl(x,y,w,h,a,dash=false){if(a<=0.01) return ''; return `<rect x="${x-8}" y="${y-8}" width="${w+16}" height="${h+16}" rx="24" fill="none" stroke="#f0a924" stroke-width="6" ${dash?'stroke-dasharray="18 12"':''} opacity="${a}"/>`}
+function ring(x,y,u){if(u<0||u>1) return ''; const r=30+90*eo(u); return `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="#f0a924" stroke-width="7" opacity="${1-u}"/>`}
+function spot(cx,cy,r,a){a*=0.35; if(a<=0.001) return '';
+  return `<mask id="spm"><rect x="-200" y="-200" width="2320" height="1480" fill="#fff"/><circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#spg)"/></mask><rect x="-200" y="-200" width="2320" height="1480" fill="#1d2b29" opacity="${a}" mask="url(#spm)"/>`}
+const SPDEF=`<radialGradient id="spg"><stop offset="0.75" stop-color="#000"/><stop offset="1" stop-color="#fff"/></radialGradient>`;
+function chip(x,y,state='busy',k=1){ // flowing slot chip, x,y = center
+  const lab=state==='free'?'LIBRE · Mar 9:30':state==='camila'?'Camila ✓ · Mar 9:30':'Mar 9:30 · Medicina';
+  const w=tw(lab,30,700)+96, bg=state==='busy'?'#ffffff':'#3fae6a', fg=state==='busy'?C.ink:'#ffffff', bd=state==='busy'?C.brand:'#2f9a5a';
+  return scaleAt(`<g filter="url(#sh)"><rect x="${x-w/2}" y="${y-30}" width="${w}" height="60" rx="30" fill="${bg}" stroke="${bd}" stroke-width="4"/></g>
+   <rect x="${x-w/2+20}" y="${y-15}" width="34" height="30" rx="6" fill="${state==='busy'?C.brand:'#ffffff'}"/><rect x="${x-w/2+20}" y="${y-15}" width="34" height="10" rx="4" fill="#f0a924"/>`+txt(x-w/2+68,y+11,lab,30,fg,700),x,y,k)}
+function confetti(cx,cy,u){if(u<0||u>1.4) return ''; let s=''; const cols=['#f0a924','#3fae6a','#e5564f','#4f8ff0','#9b7fe6'];
+  for(let i=0;i<26;i++){const a=i*2.4, sp=280+((i*53)%140), x=cx+Math.cos(a)*sp*eo(u), y=cy+Math.sin(a)*sp*eo(u)*0.7+260*u*u; s+=`<rect x="${x}" y="${y}" width="16" height="10" rx="3" fill="${cols[i%5]}" opacity="${Math.max(0,1-u/1.4)}" transform="rotate(${i*37+u*300} ${x} ${y})"/>`} return s}
+// reception tablet UI
+function tablet(t,st){ // st: {msg:'jorge'|'camila', press:-1..1, row:'busy'|'free'|'camila', toast:'', toast2:'', cam:'wait'|'acc', drag:{x,y}|null, rescued:0..1}
+  let s=room(t)+`<rect x="0" y="0" width="1920" height="1080" fill="#1d2b29" opacity=".45"/>`;
+  const X=300,Y=60,Wd=1340,Ht=780;
+  s+=`<g filter="url(#sh)"><rect x="${X}" y="${Y}" width="${Wd}" height="${Ht}" rx="36" fill="#f7fbfa"/></g><rect x="${X}" y="${Y}" width="${Wd}" height="90" rx="36" fill="${C.brand}"/><rect x="${X}" y="${Y+50}" width="${Wd}" height="40" fill="${C.brand}"/>`;
+  s+=txt(X+40,Y+60,'Juego dos · Rescate de horas',36,'#fff',700)+`<rect x="${X+Wd-270}" y="${Y+26}" width="230" height="40" rx="20" fill="#ffffff" opacity=".2"/>`+txt(X+Wd-155,Y+53,'Simulación del juego',20,'#fff',600,'middle');
+  // left: responses + buttons
+  s+=txt(X+40,Y+150,'Respuestas de pacientes',30,'#6b7d79',700);
+  s+=`<rect x="${X+40}" y="${Y+175}" width="600" height="210" rx="22" fill="#ffffff" stroke="#dce8e4" stroke-width="3"/>`;
+  if(st.msg==='jorge'){ s+=`<circle cx="${X+95}" cy="${Y+235}" r="32" fill="#8d6e63"/>`+txt(X+145,Y+228,'Don Jorge',30,C.ink,700)+txt(X+145,Y+266,'No podré ir. Quiero anular mi hora.',28,C.ink,500); }
+  else { s+=`<circle cx="${X+95}" cy="${Y+235}" r="32" fill="#f0a924"/>`+txt(X+145,Y+228,'Camila',30,C.ink,700)+txt(X+145,Y+266,'¡Sí, la acepto!',28,C.ink,500); }
+  if(st.chipIn!==false) s+=chip(X+240,Y+335,st.row==='camila'?'camila':(st.msg==='jorge'?'busy':'free'),0.85);
+  const B=[['✅ Confirmar asistencia',X+40,Y+410],['❌ Procesar cancelación',X+340,Y+410],['📅 Registrar cambio de hora',X+40,Y+510],['⏳ Por seguimiento',X+340,Y+510]];
+  B.forEach(([lab,bx,by],i)=>{const on=i===1&&st.press>=0.5, pk=i===1&&st.press===1?0.93:1;
+    s+=scaleAt(`<rect x="${bx}" y="${by}" width="290" height="80" rx="18" fill="${on?C.brand:'#ffffff'}" stroke="${on?C.brand:'#cfdcd8'}" stroke-width="3"/>`+txt(bx+145,by+50,lab,21,on?'#fff':C.ink,700,'middle'),bx+145,by+40,pk)});
+  // right: agenda + waitlist
+  const AX=X+700;
+  s+=txt(AX,Y+150,'Agenda · Martes',30,'#6b7d79',700);
+  const rows=[['9:00','Ana P. · Odontología','busy0'],['9:30',st.row==='camila'?'Camila S. · Medicina ✓':st.row==='free'?'LIBRE · Medicina':'Don Jorge · Medicina',st.row],['10:00','Luis M. · Pediatría','busy0']];
+  rows.forEach(([h,l,state],i)=>{const ry=Y+175+i*84; const hl=i===1;
+    const fill=hl&&state==='free'?'#3fae6a':hl&&state==='camila'?'#1f8a70':'#ffffff', fg=hl&&state!=='busy'?'#fff':C.ink;
+    const k=hl&&st.rowPop?back(st.rowPop):1;
+    s+=scaleAt(`<rect x="${AX}" y="${ry}" width="600" height="70" rx="18" fill="${fill}" stroke="${hl?C.brand:'#dce8e4'}" stroke-width="${hl?4:3}"/>`+txt(AX+24,ry+46,h,28,fg,800)+txt(AX+120,ry+46,l,28,fg,600),AX+300,ry+35,k)});
+  s+=txt(AX,Y+460,'Lista de espera',30,'#6b7d79',700);
+  const cx0=st.drag?st.drag.x:AX, cy0=st.drag?st.drag.y:Y+485;
+  if(!(st.row==='camila')){
+    s+=`<g filter="url(#sh)"><rect x="${cx0}" y="${cy0}" width="600" height="76" rx="18" fill="${st.camPress?'#fff4dc':'#ffffff'}" stroke="${st.cam==='acc'?'#3fae6a':'#dce8e4'}" stroke-width="${st.cam==='acc'?5:3}"/></g><circle cx="${cx0+44}" cy="${cy0+38}" r="24" fill="#f0a924"/>`+txt(cx0+84,cy0+48,'Camila S. · Medicina',27,C.ink,600);
+    if(st.cam==='acc') s+=`<rect x="${cx0+440}" y="${cy0+18}" width="140" height="40" rx="20" fill="#3fae6a"/>`+txt(cx0+510,cy0+46,'Aceptó ✓',22,'#fff',700,'middle');
+    if(st.cam==='sent') s+=`<rect x="${cx0+430}" y="${cy0+18}" width="150" height="40" rx="20" fill="#f0a924"/>`+txt(cx0+505,cy0+46,'Aviso enviado',20,C.ink,700,'middle');
+  }
+  s+=`<rect x="${AX}" y="${Y+575}" width="600" height="76" rx="18" fill="#ffffff" stroke="#dce8e4" stroke-width="3"/><circle cx="${AX+44}" cy="${Y+613}" r="24" fill="#4f8ff0"/>`+txt(AX+84,Y+623,'Pedro T. · Odontología · mié',27,C.ink,600);
+  // toasts
+  if(st.toast){const k=st.toastK||1, w=tw(st.toast,32,700)+80, tx=st.toastX||960, ty=st.toastY||(Y+690); s+=scaleAt(`<g filter="url(#sh)"><rect x="${tx-w/2}" y="${ty}" width="${w}" height="66" rx="33" fill="#1d2b29"/></g>`+txt(tx,ty+43,st.toast,32,'#fff',700,'middle'),tx,ty+33,k);}
+  return s;
+}
+// ================= v17 scenes =================
+const SC={
+ intro:{dur:4,kick:'',lines:[''],noText:true,draw(t){
+   let s=home(0,-1400);
+   const sigh=(t>2.2&&t<3.2)?Math.sin((t-2.2)*Math.PI)*-6:0;
+   s+=person({x:420,fy:900,shirt:'#f0a924',hair:'#5a3d2b',style:'long',mood:'worried',phoneFront:true,look:1,nod:sigh,skin:'#f5d3b3'});
+   if(t>=1.2) s+=namePill(640,520,'Camila',back((t-1.2)/0.35));
+   s+=phoneUI(1180,40,440,820,(x,y,w,h)=>{let g=txt(x+30,y+56,'Lista de espera',34,C.ink,700)+txt(x+30,y+100,'Medicina general',28,'#6b7d79',600);
+     g+=`<rect x="${x+24}" y="${y+140}" width="${w-48}" height="230" rx="24" fill="#ffffff" stroke="#e3ece9" stroke-width="3"/>`+txt(x+w/2,y+200,'Próxima hora disponible',26,'#6b7d79',600,'middle');
+     g+=scaleAt(txt(x+w/2,y+300,'en 3 semanas',48,'#e5564f',800,'middle'),x+w/2,y+280,back((t-0.6)/0.4));
+     return g});
+   const W1=['¿Ha','esperado','semanas'],W2=['por','una','hora?'];
+   const put=(ws,y,t0)=>{let x=110; ws.forEach((w,i)=>{const st=t0+i*0.16, a=cl((t-st)/0.15), k=back((t-st)/0.3); const ww=tw(w,80);
+     if(t>=st) s+=`<g opacity="${a}" transform="translate(${x+ww/2},${y}) scale(${k}) translate(${-x-ww/2},${-y})">`+(w==='semanas'?`<rect x="${x-6}" y="${y-28}" width="${ww+12}" height="32" fill="#f0a924" opacity=".6"/>`:'')+txt(x,y,w,80,C.ink,700)+`</g>`; x+=tw(w+' ',80)});};
+   put(W1,170,0.1); put(W2,265,0.55);
+   return `<g>${s}</g>`.replace('<g>','<g>')}},
+ bridge:{dur:3,kick:'SU TURNO',lines:['Ahora, póngase al otro lado del mesón.'],draw(t){
+   let s=room(t)+monitorBack()+nurse(930,{wave:t>0.3&&t<2.6,joy:true})+desk();
+   return s}},
+ day1:{dur:7,kick:'DÍA 1 · RECEPCIÓN',lines:['¿Cumple las condiciones? <em>Seleccione el box correcto.</em>'],draw(t){
+   const walking=t<1.8; let px=walking?lerp(-140,560,ease(t/1.8)):560, fy=760, op=1, lean=walking?4:0;
+   const fx=lerp(560,1250,ease((t-4.0)/1.2)), fyy=lerp(560,560,1);
+   if(t>=3.8&&t<5.2){px=t<4.0?560:fx; fy=t<4.0?760:lerp(760,700,Math.sin(cl((t-4.0)/1.2)*Math.PI));}
+   if(t>=5.2){px=1250; fy=760; op=1-cl((t-5.6)/0.7)}
+   const open=[cl((t-5.2)/0.4),0,0];
+   let s=room(t,open,true)+monitorBack()+nurse(930,{point:(t>=5.0&&t<6.6)?'right':null})+desk();
+   const settle=(t>=1.8&&t<2.3)?Math.sin((t-1.8)/0.5*Math.PI)*-2*(1-(t-1.8)/0.5):0;
+   s+=`<g transform="rotate(${lean+settle} ${px} ${fy})">`+person({x:px,fy:fy,shirt:'#7986cb',pants:'#3d4f75',hair:'#2b211c',walk:walking?1:(t>=4.0&&t<5.2?0.4:0),phase:t*9,stop:walking?-1:t-1.8,op,mood:t<5.2?'happy':'happy',joy:t>=5.2,nod:(t>=1.3&&t<2.4)?Math.sin((t-1.3)*9)*5:0})+`</g>`;
+   if(t>=1.0&&t<3.8) s+=scaleAt(bubble(60,170,['Tengo fiebre','y soy adulto.'],420),100,320,pop(1.0,t));
+   if(t>=2.4&&t<5.2){ let g=`<g filter="url(#sh)"><rect x="1120" y="40" width="560" height="210" rx="26" fill="#fff"/></g><rect x="1120" y="40" width="12" height="210" rx="6" fill="${C.brand}"/>`+txt(1160,100,'REGLA · MEDICINA',40,C.brand,700);
+     [['Adulto',2.8],['Fiebre',3.2]].forEach(([w,tt],i)=>{const ok=t>=tt; g+=`<circle cx="1182" cy="${148+i*56}" r="20" fill="${ok?'#3fae6a':'#e3ece9'}"/>`+(ok?`<path d="M1172 ${148+i*56} L1180 ${156+i*56} L1194 ${140+i*56}" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/>`:'')+txt(1216,162+i*56,w,38,C.ink,600)});
+     s+=scaleAt(g,1400,145,pop(2.4,t)); }
+   // drag with finger + spotlight
+   if(t>=3.4&&t<5.6){ const fxx=t<4.0?lerp(760,560,ease((t-3.4)/0.6)):fx, fyF=t<4.0?lerp(900,420,ease((t-3.4)/0.6)):400;
+     const a=0.42*cl((t-3.4)/0.3)*(1-cl((t-5.3)/0.3)); s+=spot(fxx,fyF-40,300,a); s+=finger(fxx+70,fyF+40,t>=3.9&&t<5.2?1:0); s+=ring(fxx+70,fyF+40,(t-3.9)/0.5);}
+   if(t>=5.25){ s+=scaleAt(tag(1130,170,'Atención ✓ +5','#3fae6a'),1250,330,pop(5.25,t)); }
+   return s}},
+ jorge:{dur:5,kick:'RECORDATORIO',lines:['Don Jorge no podrá asistir y <em>avisa a tiempo.</em>'],draw(t){
+   let s=home(1);
+   const happy=t>=2.8;
+   s+=person({x:520,fy:760,shirt:'#8d6e63',hair:'#cfd8dc',elder:true,mood:happy?'happy':'worried',phoneFront:true,look:1,nod:(t>=2.8&&t<3.8)?Math.sin((t-2.8)*9)*5:0,skin:'#e0ac7e'});
+   s+=namePill(520,300,'Don Jorge',back((t-0.2)/0.35));
+   const fly=t>=3.8;
+   s+=phoneUI(1180,40,440,820,(x,y,w,h)=>{let g=`<circle cx="${x+50}" cy="${y+40}" r="26" fill="${C.brand}"/>`+txt(x+90,y+50,'CESFAM',30,C.ink,700)+`<rect x="${x}" y="${y+80}" width="${w}" height="3" fill="#e3ece9"/>`;
+     if(t>=0.3){const k=back((t-0.3)/0.35); g+=scaleAt(`<rect x="${x+20}" y="${y+110}" width="${w-60}" height="260" rx="24" fill="#e2f1ec"/>`+txt(x+44,y+160,'Hola Jorge, le recordamos',23,C.ink,500)+txt(x+44,y+198,'su hora:',23,C.ink,500)+(fly?'':chip(x+w/2-10,y+262,'busy',0.82))+txt(x+44,y+340,'¿Podrá asistir?',27,C.ink,700),x+20,y+110,k);}
+     if(t>=2.2){const k=back((t-2.2)/0.35); g+=scaleAt(`<rect x="${x+70}" y="${y+400}" width="${w-90}" height="140" rx="24" fill="${C.brand}"/>`+txt(x+96,y+452,'No podré ir.',25,'#fff',600)+txt(x+96,y+494,'Quiero anular mi hora.',25,'#fff',600),x+w-20,y+470,k);}
+     return g});
+   if(fly){const u=ease((t-3.8)/1.1); const cx=lerp(1390,2150,u), cy=lerp(386,420,u)-Math.sin(u*Math.PI)*120; s+=chip(cx,cy,'busy',1+0.3*u);}
+   return s}},
+ cancel:{dur:6,kick:'JUEGO DOS · RESCATE DE HORAS',lines:['Procese la cancelación: <em>la hora queda libre.</em>'],draw(t){
+   // order for every action: pointer arrives -> press -> button reacts -> result
+   const press=t<1.55?-1:(t<1.85?1:0.6), row=t>=2.45?'free':'busy';
+   let st={msg:'jorge',press,row,rowPop:t>=2.45?(t-2.45)/0.35:0,cam:t>=4.3?'sent':'wait',chipIn:t>=0.55,toastX:1300,toastY:112,camPress:t>=4.0&&t<4.25};
+   if(t>=2.65&&t<3.6) {st.toast='📞 ¡Apareció una hora libre!'; st.toastK=back((t-2.65)/0.3);}
+   if(t>=4.3) {st.toast='📨 ¡Se envió el aviso de lista de espera a Camila!'; st.toastK=back((t-4.3)/0.3);}
+   let s=tablet(t,st);
+   if(t<0.6){const u=ease(t/0.6); s+=chip(lerp(-240,540,u),lerp(420,395,u)-Math.sin(u*Math.PI)*80,'busy',lerp(1.3,0.85,u));}
+   // highlights (thin gold outlines instead of a spotlight)
+   s+=hl(340,235,600,210,cl((t-0.9)/0.3)*(1-cl((t-1.9)/0.3)));          // Don Jorge's reply
+   s+=hl(640,470,290,80,cl((t-1.0)/0.3)*(1-cl((t-1.9)/0.3)));           // cancel button
+   s+=hl(1000,319,600,70,cl((t-2.45)/0.2)*(1-cl((t-3.6)/0.3)));         // 9:30 LIBRE
+   s+=hl(1000,545,600,76,cl((t-3.5)/0.3)*(1-cl((t-4.9)/0.3)));          // Camila on the waitlist
+   // pointer 1: cancel button (approach from the right, never crossing other buttons)
+   if(t>=1.0&&t<2.1){const u=ease((t-1.0)/0.45); const fx=lerp(1010,800,u), fy=510; s+=finger(fx,fy,t>=1.55&&t<1.85?1:0,1-cl((t-1.9)/0.2)); s+=ring(800,510,(t-1.6)/0.5);}
+   // pointer 2: Camila's waitlist row
+   if(t>=3.45&&t<4.8){const u=ease((t-3.45)/0.45); const fx=lerp(1720,1420,u), fy=583; s+=finger(fx,fy,t>=4.0&&t<4.25?1:0,1-cl((t-4.25)/0.15)); s+=ring(1420,583,(t-4.05)/0.5);}
+   if(t>=5.0){const u=ease((t-5.0)/0.9); s+=chip(lerp(1300,2150,u),lerp(354,330,u)-Math.sin(u*Math.PI)*120,'free',1+0.3*u);}
+   return s}},
+ camila:{dur:5,kick:'LISTA DE ESPERA',lines:['Camila recibe el aviso y <em>acepta la hora.</em>'],draw(t){
+   let s=home(0);
+   const buzz=(t>=0.2&&t<1.0)?Math.sin(t*90)*3:0, cheer=t>=3.0&&t<3.9, happy=t>=3.0, hop=(t>=3.05&&t<3.75)?-Math.abs(Math.sin((t-3.05)*Math.PI*2.85))*18:0;
+   const nodA=(t>=3.9&&t<4.6)?Math.sin((t-3.9)*9)*5:0;
+   s+=`<g transform="translate(${buzz},${hop})">`+person({x:520,fy:760,shirt:'#f0a924',hair:'#5a3d2b',style:'long',mood:'happy',joy:happy,cheer:cheer,phoneFront:!cheer,look:happy?0:1,nod:nodA,skin:'#f5d3b3'})+`</g>`;
+   if(t>=0.2&&t<1.0) s+=`<path d="M560 470 q14 12 0 24 M574 462 q22 20 0 40" fill="none" stroke="#f0a924" stroke-width="4" stroke-linecap="round" opacity="${0.5+0.5*Math.abs(Math.sin(t*20))}"/>`;
+   s+=namePill(520,300,'Camila',1);
+   if(t>=3.0&&t<4.2){const a0=cl((t-3.0)/0.25)*(1-cl((t-3.8)/0.4)); for(let i=0;i<8;i++){const a=i*0.8+t*2, r=150+20*Math.sin(t*5+i); s+=`<path d="M${520+Math.cos(a)*r} ${360+Math.sin(a)*r*0.6-6} l6 10 l10 6 l-10 6 l-6 10 l-6 -10 l-10 -6 l10 -6 Z" fill="#ffd166" opacity="${0.9*a0}"/>`;} }
+   if(t>=0.2&&t<0.7){const u=ease((t-0.2)/0.5); s+=chip(lerp(-240,1400,u),lerp(300,330,u),'free',lerp(1.3,0.9,u));}
+   s+=phoneUI(1180,40,440,820,(x,y,w,h)=>{let g='';
+     if(t>=0.55){const k=back((t-0.55)/0.35); g+=scaleAt(`<rect x="${x+16}" y="${y+40}" width="${w-32}" height="360" rx="24" fill="#ffffff" stroke="#dce8e4" stroke-width="3"/><circle cx="${x+60}" cy="${y+90}" r="22" fill="${C.brand}"/>`+txt(x+96,y+100,'CESFAM · Lista de espera',24,C.ink,700)+txt(x+40,y+160,'Se liberó una hora:',30,C.ink,600)+chip(x+w/2-6,y+222,'free',0.82)+txt(x+40,y+310,'¿La acepta?',34,C.ink,700),x+w/2,y+40,k);}
+     if(t>=1.2&&t<2.95){const pr=t>=2.55&&t<2.85, done=t>=2.85; g+=scaleAt(`<rect x="${x+30}" y="${y+440}" width="${w-60}" height="96" rx="24" fill="${pr||done?'#145f4e':C.brand}" stroke="${pr?'#f0a924':'none'}" stroke-width="6"/>`+txt(x+w/2,y+501,'Sí, la acepto',34,'#fff',700,'middle'),x+w/2,y+488,(pr?0.93:1)*back((t-1.2)/0.3));
+       g+=`<g opacity="${1-cl((t-2.6)/0.25)*0.6}"><rect x="${x+30}" y="${y+556}" width="${w-60}" height="86" rx="24" fill="#fff" stroke="#cfdcd8" stroke-width="3"/>`+txt(x+w/2,y+612,'No, gracias',30,'#6b7d79',600,'middle')+`</g>`;}
+     if(t>=2.95){const k=back((t-2.95)/0.35); g+=scaleAt(`<circle cx="${x+w/2}" cy="${y+520}" r="64" fill="#3fae6a"/><path d="M${x+w/2-28} ${y+520} L${x+w/2-6} ${y+542} L${x+w/2+32} ${y+500}" fill="none" stroke="#fff" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>`+txt(x+w/2,y+640,'¡Hora aceptada!',38,'#2f9a5a',800,'middle'),x+w/2,y+560,k);}
+     return g});
+   // pointer arrives horizontally from the right edge, centred on «Sí, la acepto», then presses
+   if(t>=1.9&&t<3.1){const u=ease((t-1.9)/0.5); const fx=lerp(1760,1400,u), fy=612; s+=finger(fx,fy,t>=2.55&&t<2.85?1:0,1-cl((t-2.9)/0.2)); s+=ring(1400,612,(t-2.6)/0.5);}
+   if(t>=4.0){const u=ease((t-4.0)/0.95); s+=chip(lerp(1400,2150,u),lerp(330,330,u)-Math.sin(u*Math.PI)*100,'free',1+0.3*u);}
+   return s}},
+ assigned:{dur:4,kick:'¡HORA RESCATADA!',lines:['Don Jorge avisó a tiempo: <em>su hora fue para Camila.</em>'],draw(t){
+   const done=t>=2.0; let drag=null;
+   if(t>=1.0&&t<2.0){const u=ease((t-1.0)/1.0); drag={x:1000,y:lerp(545,235,u)};}
+   let st={msg:'camila',press:-1,row:done?'camila':'free',rowPop:done?(t-2.0)/0.35:0,cam:'acc',drag:done?null:drag,chipIn:t>=0.45,toastX:1300,toastY:112};
+   if(done){st.toast='🎉 ¡Hora rescatada! Camila tiene su hora.'; st.toastK=back((t-2.1)/0.3);}
+   let s=tablet(t,st);
+   if(t<0.5){const u=ease(t/0.5); s+=chip(lerp(-240,540,u),lerp(420,395,u)-Math.sin(u*Math.PI)*80,'free',lerp(1.3,0.85,u));}
+   s+=hl(1000,319,600,70,cl((t-0.6)/0.3)*(1-cl((t-2.0)/0.2)),true);        // target slot
+   if(t>=0.6&&t<2.3){const fx=drag?drag.x+595:lerp(1760,1595,ease((t-0.6)/0.35)), fy=drag?drag.y+38:583; s+=finger(fx,fy,t>=0.95&&t<2.0?1:0,1-cl((t-2.05)/0.2));}
+   s+=hl(1000,319,600,70,cl((t-2.0)/0.15)*(1-cl((t-3.2)/0.4)));
+   s+=confetti(1300,350,(t-2.0)/1.0);
+   return s}},
+ teaserA:{dur:3.5,kick:'MÁS DESAFÍOS · URGENCIAS',lines:['Atienda primero <em>la urgencia.</em>'],draw(t){
+   const ax=lerp(-150,720,ease(Math.min(t,1.3)/1.3)), bx=lerp(-330,470,ease(Math.min(t,1.3)/1.3));
+   const go=t>=2.3, bxx=go?lerp(470,1250,ease((t-2.3)/1.0)):bx;
+   let s=room(t,[cl((t-2.4)/0.4),0,0],false)+monitorBack()+nurse(930,{point:t>=2.0&&t<3.2?'right':null})+desk();
+   s+=person({x:ax,fy:760,shirt:'#4f8ff0',hair:'#8a5a3b',style:'bob',walk:t<1.3?1:0,phase:t*9,stop:t<1.3?-1:t-1.3,look:t>=1.9?-1:0,skin:'#f5d3b3'});
+   s+=`<g transform="rotate(-5 ${bxx} 760)">`+person({x:bxx,fy:760,shirt:'#e5564f',pants:'#3d4f75',hair:'#cfd8dc',elder:true,walk:(t<1.3||go)?0.6:0,phase:t*7,stop:(t>=1.3&&!go)?t-1.3:-1,pain:true,tp:t,skin:'#e0ac7e'})+`</g>`;
+   if(t>=1.2&&t<2.4){const v=ease((t-1.2)/0.45); const fx=lerp(760,bx+70,v), fy=lerp(980,560,v); s+=spot(fx,fy-60,260,0.4*cl((t-1.2)/0.3)*(1-cl((t-2.1)/0.3))); s+=finger(fx,fy,t>=1.65&&t<1.9?1:0); s+=ring(bx+70,560,(t-1.7)/0.5);}
+   if(t>=1.9) s+=scaleAt(tag(go?bxx:bx,150,'URGENCIA · Primero',RED,48,'middle'),bx,190,pop(1.9,t));
+   return s}},
+ teaserB:{dur:3.5,kick:'MÁS DESAFÍOS · ACCIDENTE MASIVO',lines:['Clasifique con START: <em>¿camina? ¿respira?</em>'],draw(t){
+   window.LITE=true; const r=OLD.bonus.draw(Math.min(5.9,1.0+t*1.4)); window.LITE=false; return r}},
+ core:{dur:5,kick:'',lines:[''],noText:true,draw(t){
+   let s=`<rect x="0" y="0" width="1920" height="1080" fill="#eef5f2"/><circle cx="190" cy="870" r="450" fill="${C.brand}" opacity=".10"/><circle cx="1220" cy="40" r="260" fill="${C.gold}" opacity=".16"/>`;
+   s+=`<ellipse cx="400" cy="902" rx="120" ry="16" fill="#1d2b29" opacity=".1"/>`+person({x:400,fy:900,shirt:'#f0a924',hair:'#5a3d2b',style:'long',joy:true,phoneFront:true,skin:'#f5d3b3'});
+   s+=namePill(400,420,'Camila',1)+`<circle cx="408" cy="645" r="18" fill="#3fae6a"/><path d="M400 645 L406 651 L417 639" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>`;
+   const ap=(d)=>{const a=eo((t-d)/0.4); return `opacity="${a}" transform="translate(0,${(1-a)*30})"`};
+   s+=`<g ${ap(0.2)}>`+txt(760,330,'Si no puede asistir,',76,C.ink,700)+txt(760,420,'avise con tiempo.',76,C.ink,700)+`</g>`;
+   s+=`<g ${ap(1.3)}>`+txt(760,540,'Su hora puede ser la oportunidad',48,C.brand,700)+txt(760,602,'de otra persona.',48,C.brand,700)+`</g>`;
+   if(t>=2.6){const k=back((t-2.6)/0.45), w=tw('Mi Hora, Tu Oportunidad',72); s+=scaleAt(logoIcon(820,770,110,1)+`<rect x="900" y="780" width="${w+16}" height="34" fill="#f0a924" opacity=".6"/>`+txt(908,806,'Mi Hora, Tu Oportunidad',72,C.ink,700),1200,770,k);}
+   return s}},
+ play:{dur:4,kick:'',lines:[''],noText:true,draw(t){
+   let s=OLD.play.draw(t);
+   s+=`<rect x="0" y="200" width="870" height="760" fill="#eef5f2"/>`;
+   const ap=(d)=>{const a=eo((t-d)/0.35); return `opacity="${a}" transform="translate(0,${(1-a)*40})"`};
+   s+=`<g ${ap(0)}><rect x="150" y="290" width="${tw('¡SU TURNO!',30)+48}" height="60" rx="30" fill="${C.brand}"/>`+txt(174,331,'¡SU TURNO!',30,'#fff',700)+`</g>`;
+   s+=`<g ${ap(0.1)}>`+txt(150,500,'¡Le toca',120,C.ink,700)+`</g><g ${ap(0.2)}>`+`<rect x="146" y="598" width="${tw('jugar!',120)+8}" height="40" fill="${C.gold}" opacity=".55"/>`+txt(150,630,'jugar!',120,C.ink,700)+`</g>`;
+   s+=`<g ${ap(0.5)}>`+txt(150,730,'El juego real, decisiones reales.',44,'#6b7d79',600)+`</g>`;
+   return s}},
+ outro:{dur:8,kick:'',lines:[''],noText:true,draw(t){
+   let s=`<rect x="0" y="0" width="1920" height="1080" fill="#eef5f2"/><circle cx="190" cy="900" r="420" fill="${C.brand}" opacity=".08"/>`;
+   const ap=(d)=>{const a=eo((t-d*0.4)/0.35); return `opacity="${a}"`};
+   s+=`<g opacity="${eo(t/0.3)}">`+logoIcon(210,250,130,1)+`</g>`;
+   s+=`<g ${ap(0.05)}>`+txt(310,282,'<tspan fill="#1f8a70">Misión</tspan> CESFAM',96,C.ink,700)+`</g>`;
+   const w=tw('Mi Hora, Tu Oportunidad',52); s+=`<g ${ap(0.15)}><rect x="146" y="372" width="${w+12}" height="26" fill="#f0a924" opacity=".55"/>`+txt(150,394,'Mi Hora, Tu Oportunidad',52,C.ink,700)+`</g>`;
+   s+=`<g ${ap(0.4)}>`+txt(150,560,'Escanee y juegue',96,C.brand,800)+txt(150,630,'Juego educativo en el navegador · Español (Chile)',34,'#5e6e6b',600)+`</g>`;
+   s+=`<g ${ap(0.7)}>`+txt(150,960,'Prototipo educativo con casos ficticios. No reemplaza la atención médica.',28,'#5e6e6b',600)+`</g>`;
+   // QR: fades in at its final position and size, then never moves
+   s+=`<g opacity="${eo(t/0.3)}"><g filter="url(#sh)"><rect x="1170" y="200" width="600" height="640" rx="40" fill="#ffffff"/></g><image href="qr_clean.png" x="1220" y="240" width="500" height="500"/>`+txt(1470,800,'Escanee con la cámara',32,C.ink,700,'middle')+`</g>`;
+   return s}},
+ sting:OLD.sting, question:OLD.question,
+};
+const CAMS={
+ intro:[[0,1.0,960,540],[4,1.04,900,540]],
+ sting:[[0,1.08,960,540],[2,1.0,960,540]],
+ bridge:[[0,1.25,930,470],[2.2,1.0,960,540],[3,1.0,960,540]],
+ day1:[[0,1.0,960,540],[3.4,1.04,900,520],[5.2,1.06,1080,520],[7,1.04,1100,540]],
+ jorge:[[0,1.0,960,540],[2.0,1.05,1100,520],[5,1.05,1100,520]],
+ cancel:[[0,1.0,960,540],[0.7,1.0,960,540],[1.1,1.6,660,400],[1.95,1.6,660,400],[2.4,1.45,1300,470],[4.9,1.45,1300,470],[5.6,1.15,1200,500],[6,1.15,1200,500]],
+ camila:[[0,1.0,960,540],[1.9,1.08,1180,520],[2.95,1.08,1180,520],[3.4,1.04,800,540],[5,1.04,800,540]],
+ assigned:[[0,1.0,960,540],[0.5,1.0,960,540],[0.95,1.45,1300,440],[3.2,1.45,1300,440],[4,1.3,1250,460]],
+ core:[[0,1.0,960,540],[5,1.03,960,540]],
+ teaserA:[[0,1.0,960,540],[3.5,1.04,900,520]],
+ teaserB:[[0,1.0,960,540],[3.5,1.04,860,540]],
+};
+
+// ===================== v20: launch-film polish =====================
+// one consistent slot chip (same shape + font size everywhere)
+function chip(x,y,state='busy',k=1){
+  const lab=state==='free'?'LIBRE · Mar 9:30':state==='camila'?'Camila ✓ · Mar 9:30':'Mar 9:30 · Medicina';
+  const fs=31, w=tw(lab,fs,700)+96, h=64;
+  const bg=state==='busy'?'#ffffff':state==='free'?'#3fae6a':'#1a7a62', fg=state==='busy'?C.ink:'#ffffff', bd=state==='busy'?C.brand:bg;
+  return scaleAt(`<g filter="url(#sh)"><rect x="${x-w/2}" y="${y-h/2}" width="${w}" height="${h}" rx="32" fill="${bg}" stroke="${bd}" stroke-width="3"/></g>`+
+    `<rect x="${x-w/2+20}" y="${y-16}" width="36" height="32" rx="6" fill="${state==='busy'?C.brand:'#ffffff'}"/><rect x="${x-w/2+20}" y="${y-16}" width="36" height="10" rx="5" fill="#f0a924"/>`+
+    txt(x-w/2+70,y+11,lab,fs,fg,700),x,y,k)}
+const HERO=[960,520];
+function arcPos(a,b,u,lift=90){const e=ease(cl(u)); return [lerp(a[0],b[0],e), lerp(a[1],b[1],e)-Math.sin(e*Math.PI)*lift]}
+function veil(a,col='#eef5f2'){return a>0.001?`<rect x="-10" y="-10" width="1940" height="1100" fill="${col}" opacity="${cl(a)}"/>`:''}
+// thin, soft phone frame used by every phone in v20
+function phone2(x,y,w,h,inner){
+  let s=`<g filter="url(#sh)"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="50" fill="#2e3d3a"/></g><rect x="${x+9}" y="${y+9}" width="${w-18}" height="${h-18}" rx="42" fill="#f7fbfa"/>`;
+  s+=`<rect x="${x+w/2-50}" y="${y+22}" width="100" height="10" rx="5" fill="#2e3d3a" opacity=".85"/>`;
+  s+=`<rect x="${x+w/2-112}" y="${y+46}" width="224" height="32" rx="16" fill="#e3ece9"/>`+txt(x+w/2,y+68,'Simulación del juego',19,'#6b7d79',600,'middle');
+  return s+inner(x,y,w,h);
+}
+function softBg(){return `<rect x="0" y="0" width="1920" height="1080" fill="#eef5f2"/><circle cx="160" cy="900" r="430" fill="${C.brand}" opacity=".07"/><circle cx="1760" cy="120" r="300" fill="${C.gold}" opacity=".10"/>`}
+function panel(x,y,w,h,title,op=1,dx=0){
+  return `<g opacity="${op}" transform="translate(${dx},0)"><g filter="url(#sh)"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="34" fill="#ffffff"/></g>`+txt(x+44,y+62,title,30,'#6b7d79',700)+
+    `<rect x="${x+w-250}" y="${y+30}" width="214" height="38" rx="19" fill="#eef5f2"/>`+txt(x+w-143,y+56,'Simulación del juego',19,'#6b7d79',600,'middle');
+}
+function toast2(x,y,msg,k){const w=tw(msg,32,700)+84; return scaleAt(`<g filter="url(#sh)"><rect x="${x-w/2}" y="${y}" width="${w}" height="68" rx="34" fill="#1d2b29"/></g>`+txt(x,y+45,msg,32,'#fff',700,'middle'),x,y+34,k)}
+// panel slide: in [t0,t0+.4], out [t1,t1+.4]
+function slide(t,t0,t1){const i=eo((t-t0)/0.4), o=eo((t-t1)/0.4); return {op:i*(1-o), dx:(1-i)*260-o*260}}
+// desaturate the environment (rooms + homes), flatten the doors a little
+const _room=room; room=function(...a){return `<g filter="url(#desat)">`+_room(...a)+`</g>`};
+const _home=home; home=function(...a){return `<g filter="url(#desat)">`+_home(...a)+`</g>`};
+const DESAT=`<filter id="desat"><feColorMatrix type="saturate" values="0.78"/></filter>`;
+
+const _tA=SC.teaserA;
+Object.assign(SC,{
+ intro:{dur:4.5,kick:'',lines:[''],noText:true,draw(t){
+   let s=home(0,-1400);
+   const sigh=(t>3.0&&t<3.9)?Math.sin((t-3.0)/0.9*Math.PI)*-5:0;
+   s+=person({x:430,fy:900,shirt:'#f0a924',hair:'#5a3d2b',style:'long',mood:'worried',phoneFront:true,look:1,nod:sigh,skin:'#f5d3b3'});
+   s+=namePill(650,520,'Camila',back((t-0.3)/0.35));
+   s+=phone2(1180,60,440,800,(x,y,w,h)=>{let g=txt(x+40,y+140,'Lista de espera',36,C.ink,700)+txt(x+40,y+182,'Medicina general',28,'#6b7d79',600);
+     g+=`<rect x="${x+30}" y="${y+220}" width="${w-60}" height="250" rx="26" fill="#ffffff" stroke="#e3ece9" stroke-width="3"/>`+txt(x+w/2,y+280,'Próxima hora disponible',26,'#6b7d79',600,'middle');
+     if(t>=1.75) g+=scaleAt(txt(x+w/2,y+385,'en 3 semanas',50,'#e5564f',800,'middle'),x+w/2,y+368,back((t-1.75)/0.4));
+     else g+=`<rect x="${x+w/2-110}" y="${y+350}" width="220" height="20" rx="10" fill="#eef2f1"/>`;
+     return g});
+   const W1=['¿Ha','esperado','semanas'],W2=['por','una','hora?'];
+   const put=(ws,y,t0)=>{let x=110; ws.forEach((w,i)=>{const st=t0+i*0.13, a=cl((t-st)/0.15), k=back((t-st)/0.3); const ww=tw(w,80);
+     if(t>=st) s+=`<g opacity="${a}" transform="translate(${x+ww/2},${y}) scale(${k}) translate(${-x-ww/2},${-y})">`+(w==='semanas'?`<rect x="${x-6}" y="${y-28}" width="${ww+12}" height="32" fill="#f0a924" opacity=".6"/>`:'')+txt(x,y,w,80,C.ink,700)+`</g>`; x+=tw(w+' ',80)});};
+   if(!window.VERT){put(W1,180,2.8); put(W2,275,3.2);}
+   return s}},
+ sting:{dur:3.5,kick:'',lines:[''],noText:true,draw(t){
+   let s=`<defs><linearGradient id="stg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c7a63"/><stop offset="1" stop-color="#0f4a3d"/></linearGradient><radialGradient id="stl" cx="50%" cy="38%" r="55%"><stop offset="0" stop-color="#ffffff" stop-opacity=".16"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient></defs>`;
+   s+=`<rect x="0" y="0" width="1920" height="1080" fill="url(#stg)"/><rect x="0" y="0" width="1920" height="1080" fill="url(#stl)"/>`;
+   const a0=eo(t/0.45), k0=0.92+0.08*a0;
+   s+=`<g opacity="${a0}">`+scaleAt(logoIcon(960,250,190,(t-0.25)/0.45,true),960,250,k0)+`</g>`;
+   const a1=eo((t-0.25)/0.4), a2=eo((t-0.4)/0.4), a3=eo((t-0.55)/0.45);
+   const wm=tw('Misión ',110)+tw('CESFAM',110), x0=960-wm/2;
+   s+=`<g opacity="${a1}" transform="translate(0,${(1-a1)*24})"><text x="${x0}" y="500" font-family="Poppins" font-weight="700" font-size="110" fill="#f0c45c">Misión <tspan fill="#ffffff">CESFAM</tspan></text></g>`;
+   s+=`<g opacity="${a2}">`+txt(960,575,'Mi Hora, Tu Oportunidad',46,'#bfe3d6',600,'middle')+`</g>`;
+   const pw=tw('JUEGO EDUCATIVO',26,700)+56;
+   s+=`<g opacity="${a3}" transform="translate(0,${(1-a3)*20})"><rect x="${960-pw/2}" y="660" width="${pw}" height="48" rx="24" fill="#f0a924"/>`+txt(960,693,'JUEGO EDUCATIVO',26,'#1d2b29',700,'middle')+
+     txt(960,780,'Un juego para comprender cómo sus decisiones',40,'#ffffff',600,'middle')+txt(960,832,'influyen en la atención.',40,'#ffffff',600,'middle')+`</g>`;
+   return s}},
+ bridge:{dur:2,kick:'SU TURNO',lines:['Ahora, póngase al otro lado del mesón.'],draw(t){
+   return room(t,[0,0,0],true)+monitorBack()+nurse(930,{wave:t>0.2&&t<1.8,joy:true})+desk()}},
+ day1:{dur:5,kick:'RECEPCIÓN',lines:['Cada decisión <em>cuenta.</em>'],tIn:0.2,draw(t){
+   const walking=t<1.0; let px=walking?lerp(-140,560,ease(t/1.0)):560, fy=760, op=1;
+   const dragging=t>=2.2&&t<3.0, fx=lerp(560,1250,ease((t-2.2)/0.8));
+   if(dragging){px=fx; fy=lerp(760,700,Math.sin(cl((t-2.2)/0.8)*Math.PI));}
+   if(t>=3.0){px=1250; op=1-cl((t-3.3)/0.6)}
+   let s=room(t,[cl((t-3.0)/0.35),0,0],true)+monitorBack()+nurse(930,{point:(t>=2.9&&t<4.2)?'right':null})+desk();
+   s+=person({x:px,fy:fy,shirt:'#7986cb',pants:'#3d4f75',hair:'#2b211c',walk:walking?1:(dragging?0.4:0),phase:t*9,stop:walking?-1:t-1.0,op,mood:'happy',joy:t>=3.0,look:t>=1.0&&t<2.2?1:0,nod:(t>=0.7&&t<1.6)?Math.sin((t-0.7)*9)*4:0});
+   if(t>=0.5&&t<2.2) s+=scaleAt(bubble(60,170,['Tengo fiebre','y soy adulto.'],420),100,320,pop(0.5,t)*(1-cl((t-2.0)/0.2)));
+   if(t>=0.9&&t<3.0){ let g=`<g filter="url(#sh)"><rect x="1120" y="40" width="560" height="210" rx="26" fill="#fff"/></g><rect x="1120" y="40" width="12" height="210" rx="6" fill="${C.brand}"/>`+txt(1160,100,'REGLA · MEDICINA',40,C.brand,700);
+     [['Adulto',1.25],['Fiebre',1.55]].forEach(([w,tt],i)=>{const ok=t>=tt; g+=`<circle cx="1182" cy="${148+i*56}" r="20" fill="${ok?'#3fae6a':'#e3ece9'}"/>`+(ok?`<path d="M1172 ${148+i*56} L1180 ${156+i*56} L1194 ${140+i*56}" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/>`:'')+txt(1216,162+i*56,w,38,C.ink,600)});
+     s+=`<g opacity="${1-cl((t-2.8)/0.2)}">`+scaleAt(g,1400,145,pop(0.9,t))+`</g>`; }
+   // target: Medicina door outlined (no spotlight)
+   s+=hl(1150,380,200,380,cl((t-2.0)/0.25)*(1-cl((t-3.1)/0.3)),true);
+   if(t>=1.8&&t<3.2){const fxx=t<2.2?lerp(760,620,ease((t-1.8)/0.35)):px+60, fyy=t<2.2?lerp(980,560,ease((t-1.8)/0.35)):fy-200;
+     s+=finger(fxx,fyy,t>=2.1&&t<3.0?1:0,1-cl((t-3.0)/0.2)); s+=ring(620,560,(t-2.1)/0.5);}
+   if(t>=3.1) s+=scaleAt(tag(1130,170,'Atención ✓ +5','#3fae6a'),1250,200,pop(3.1,t));
+   return s}},
+ jorge:{dur:4,kick:'AVISO',lines:['Un aviso <em>a tiempo.</em>'],tIn:0.4,tOut:3.3,draw(t){
+   let s=home(1);
+   const calm=t>=2.0;
+   s+=person({x:520,fy:780,shirt:'#8d6e63',hair:'#cfd8dc',elder:true,mood:calm?'happy':'worried',phoneFront:true,look:1,nod:(t>=2.0&&t<2.9)?Math.sin((t-2.0)*9)*5:0,skin:'#e0ac7e'});
+   s+=namePill(520,320,'Don Jorge',back((t-0.1)/0.35));
+   const CP=[1400,388], out=t>=3.4;
+   s+=phone2(1180,60,440,800,(x,y,w,h)=>{let g=`<circle cx="${x+56}" cy="${y+122}" r="24" fill="${C.brand}"/>`+txt(x+92,y+132,'CESFAM',30,C.ink,700)+`<rect x="${x+20}" y="${y+164}" width="${w-40}" height="2" fill="#e3ece9"/>`;
+     if(t>=0.3){const k=back((t-0.3)/0.35); g+=scaleAt(`<rect x="${x+22}" y="${y+190}" width="${w-44}" height="250" rx="24" fill="#e2f1ec"/>`+txt(x+50,y+234,'Hola Jorge, le recordamos',24,C.ink,500)+txt(x+50,y+266,'su hora:',24,C.ink,500)+txt(x+50,y+410,'¿Podrá asistir?',26,C.ink,700),x+26,y+190,k);}
+     if(t>=1.5){const k=back((t-1.5)/0.35); g+=scaleAt(`<rect x="${x+66}" y="${y+470}" width="${w-92}" height="122" rx="24" fill="${C.brand}"/>`+txt(x+90,y+518,'No podré ir.',24,'#fff',600)+txt(x+90,y+558,'Quiero anular mi hora.',24,'#fff',600),x+w-26,y+530,k);}
+     return g});
+   if(t>=0.3){const p=out?arcPos(CP,[616+tw('Mar 9:30 · Medicina',31,700)/2+48,425],(t-3.4)/0.6,80):CP; s+=chip(p[0],p[1],'busy',t<0.65?back((t-0.3)/0.35):1);}
+   return s}},
+ cancel:{dur:6,kick:'RESCATE DE HORAS',lines:['Una nueva <em>oportunidad.</em>'],tIn:2.4,tOut:5.3,draw(t){
+   let s=softBg();
+   // A: reply + cancel button
+   const A=slide(t,-1,1.6), B=slide(t,1.8,3.4), Cc=slide(t,3.6,99);
+   const PA=[616+tw('Mar 9:30 · Medicina',31,700)/2+48,425], PB=[1200,385], PC=[760+tw('LIBRE · Mar 9:30',31,700)/2+48,430];
+   if(A.op>0.01){ let g=panel(460,150,1000,560,'Respuestas de pacientes',A.op,A.dx);
+     g+=`<g opacity="${A.op}" transform="translate(${A.dx},0)"><circle cx="550" cy="290" r="42" fill="#8d6e63"/>`+txt(616,280,'Don Jorge',38,C.ink,700)+txt(616,328,'No podré ir. Quiero anular mi hora.',32,C.ink,500);
+     const pr=t>=1.2&&t<1.45, dn=t>=1.45;
+     g+=scaleAt(`<rect x="660" y="510" width="600" height="104" rx="26" fill="${pr?'#145f4e':dn?C.brand:'#ffffff'}" stroke="${pr?'#f0a924':dn?C.brand:'#cfdcd8'}" stroke-width="${pr?6:3}"/>`+txt(960,575,'❌ Procesar cancelación',34,pr||dn?'#fff':C.ink,700,'middle'),960,562,pr?0.95:1)+`</g>`;
+     s+=g;}
+   if(t>=0.75&&t<1.75){const u=ease((t-0.75)/0.4); s+=finger(lerp(1560,1234,u),562,t>=1.2&&t<1.45?1:0,1-cl((t-1.55)/0.2)); s+=ring(1234,562,(t-1.25)/0.5);}
+   // B: agenda, 9:30 becomes LIBRE
+   const free=t>=2.35;
+   if(B.op>0.01){ let g=panel(460,150,1000,470,'Agenda · Martes',B.op,B.dx)+`<g opacity="${B.op}" transform="translate(${B.dx},0)">`;
+     [['9:00','Ana P.',230],['9:30',free?'':'Don Jorge',340],['10:00','Luis M.',450]].forEach(([h,n,y],i)=>{const main=i===1;
+       g+=`<g opacity="${main?1:0.42}"><rect x="500" y="${y}" width="920" height="90" rx="22" fill="${main&&free?'#e6f5ee':'#ffffff'}" stroke="${main?(free?'#3fae6a':'#cfdcd8'):'#e3ece9'}" stroke-width="${main?4:3}"/>`+txt(536,y+58,h,36,C.ink,800)+txt(660,y+58,n,32,C.ink,600)+`</g>`;
+       if(main&&t>=2.1&&t<2.7){const u=cl((t-2.1)/0.25); g+=`<g opacity="${1-cl((t-2.35)/0.3)}">`+txt(660,y+58,'Don Jorge',32,'#9aa8a5',600)+`<rect x="656" y="${y+44}" width="${tw('Don Jorge',32,600)*u+8}" height="5" fill="#e5564f"/></g>`;}
+       if(main&&free) g+=txt(660,y+58,'Disponible',32,'#2f9a5a',700);});
+     g+=`</g>`; s+=g;
+     if(t>=2.6&&t<3.5) s+=`<g opacity="${1-cl((t-3.3)/0.2)}">`+toast2(960,650,'📞 ¡Apareció una hora libre!',back((t-2.6)/0.3))+`</g>`;}
+   // C: waitlist, notify Camila
+   const sent=t>=4.55;
+   if(Cc.op>0.01){ let g=panel(460,150,1000,470,'Lista de espera',Cc.op,Cc.dx)+`<g opacity="${Cc.op}" transform="translate(${Cc.dx},0)">`;
+     const pr=t>=4.3&&t<4.55;
+     g+=`<rect x="500" y="220" width="920" height="140" rx="24" fill="${pr?'#fff4dc':'#ffffff'}" stroke="${pr||sent?'#f0a924':'#cfdcd8'}" stroke-width="${pr||sent?5:3}"/><circle cx="572" cy="290" r="40" fill="#f0a924"/>`+txt(636,282,'Camila S.',38,C.ink,700)+txt(636,326,'Medicina general · espera 3 semanas',26,'#6b7d79',600);
+     if(sent) g+=scaleAt(`<rect x="1210" y="268" width="180" height="46" rx="23" fill="#f0a924"/>`+txt(1300,299,'Aviso enviado',22,C.ink,700,'middle'),1300,291,back((t-4.55)/0.3));
+     g+=txt(520,442,'Hora ofrecida:',30,'#6b7d79',700);
+     g+=`<g opacity=".4"><rect x="500" y="480" width="920" height="100" rx="24" fill="#ffffff" stroke="#e3ece9" stroke-width="3"/><circle cx="572" cy="530" r="32" fill="#4f8ff0"/>`+txt(626,542,'Pedro T. · Odontología',30,C.ink,600)+`</g>`;
+     g+=`</g>`; s+=g;
+     if(t>=4.6&&t<5.5) s+=`<g opacity="${1-cl((t-5.3)/0.2)}">`+toast2(960,650,'📨 ¡Se envió el aviso de lista de espera a Camila!',back((t-4.6)/0.3))+`</g>`;}
+   if(t>=3.85&&t<4.8){const u=ease((t-3.85)/0.4); s+=finger(lerp(1600,1340,u),290,t>=4.3&&t<4.55?1:0,1-cl((t-4.55)/0.2)); s+=ring(1340,290,(t-4.35)/0.5);}
+   // the slot chip: hero -> reply -> agenda row -> offered to Camila -> hero
+   let p, st='busy';
+   if(t<1.7) p=PA;
+   else if(t<2.25) p=arcPos(PA,PB,(t-1.7)/0.55,80);
+   else if(t<3.45) p=PB;
+   else if(t<4.05) p=arcPos(PB,PC,(t-3.45)/0.6,80);
+   else if(t<5.45) p=PC;
+   else p=arcPos(PC,[1400,330],(t-5.45)/0.55,90);
+   if(t>=2.35) st='free';
+   s+=chip(p[0],p[1],st,(t>=2.35&&t<2.7)?back((t-2.35)/0.35)*0.1+0.9+0.1*Math.sin(cl((t-2.35)/0.35)*Math.PI):1);
+   return s}},
+ camila:{dur:4,kick:'',lines:[''],noText:true,draw(t){
+   let s=home(0);
+   const buzz=(t>=0.6&&t<1.3)?Math.sin(t*90)*3:0, acc=t>=2.35;
+   s+=`<g transform="translate(${buzz},0)">`+person({x:520,fy:800,shirt:'#f0a924',hair:'#5a3d2b',style:'long',mood:acc?'happy':'worried',joy:acc,phoneFront:true,look:1,nod:(t>=2.5&&t<3.3)?Math.sin((t-2.5)*8)*4:0,skin:'#f5d3b3'})+`</g>`;
+   if(t>=0.6&&t<1.3) s+=`<path d="M560 520 q14 12 0 24 M574 512 q22 20 0 40" fill="none" stroke="#f0a924" stroke-width="4" stroke-linecap="round" opacity="${0.5+0.5*Math.abs(Math.sin(t*20))}"/>`;
+   s+=namePill(520,340,'Camila',1);
+   const CP=[1400,330];
+   s+=phone2(1180,60,440,800,(x,y,w,h)=>{let g='';
+     if(t>=0){const k=1; g+=scaleAt(`<rect x="${x+26}" y="${y+100}" width="${w-52}" height="360" rx="26" fill="#ffffff" stroke="#dce8e4" stroke-width="3"/><circle cx="${x+66}" cy="${y+146}" r="20" fill="${C.brand}"/>`+txt(x+98,y+155,'CESFAM · Lista de espera',23,C.ink,700)+txt(x+50,y+218,'Se liberó una hora:',30,C.ink,600)+txt(x+50,y+410,'¿La acepta?',34,C.ink,700),x+w/2,y+100,k);}
+     if(t>=1.0&&t<2.4){const pr=t>=1.95&&t<2.2, dn=t>=2.2; g+=scaleAt(`<rect x="${x+36}" y="${y+500}" width="${w-72}" height="96" rx="26" fill="${pr||dn?'#145f4e':C.brand}" stroke="${pr?'#f0a924':'none'}" stroke-width="6"/>`+txt(x+w/2-20,y+561,'Sí, la acepto',34,'#fff',700,'middle'),x+w/2,y+548,(pr?0.94:1)*back((t-1.0)/0.3));
+       g+=`<g opacity="${1-cl((t-2.0)/0.2)*0.6}"><rect x="${x+36}" y="${y+616}" width="${w-72}" height="84" rx="26" fill="#fff" stroke="#cfdcd8" stroke-width="3"/>`+txt(x+w/2,y+670,'No, gracias',30,'#6b7d79',600,'middle')+`</g>`;}
+     if(t>=2.4){const k=back((t-2.4)/0.35); g+=scaleAt(`<circle cx="${x+w/2}" cy="${y+570}" r="60" fill="#3fae6a"/><path d="M${x+w/2-26} ${y+570} L${x+w/2-5} ${y+591} L${x+w/2+30} ${y+551}" fill="none" stroke="#fff" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>`+txt(x+w/2,y+690,'¡Hora aceptada!',38,'#2f9a5a',800,'middle'),x+w/2,y+610,k);}
+     return g});
+   // pointer slides in from the right edge onto «Sí, la acepto» (right side of the button, not on the label)
+   if(t>=1.45&&t<2.5){const u=ease((t-1.45)/0.45); const fx=lerp(1760,1545,u); s+=finger(fx,608,t>=1.95&&t<2.2?1:0,1-cl((t-2.3)/0.2)); s+=ring(1545,608,(t-2.0)/0.5);}
+   let p=t<3.45?CP:arcPos(CP,[1200,385],(t-3.45)/0.55,90);
+   s+=chip(p[0],p[1],'free',1);
+   return s}},
+ assigned:{dur:3,kick:'',lines:[''],noText:true,draw(t){
+   let s=softBg();
+   const filled=t>=1.15, PB=[1200,385];
+   let g=panel(460,150,1000,470,'Agenda · Martes',1);
+   [['9:00','Ana P.',230],['9:30','',340],['10:00','Luis M.',450]].forEach(([h,n,y],i)=>{const main=i===1;
+     g+=`<g opacity="${(main?1:0.42)}"><rect x="500" y="${y}" width="920" height="90" rx="22" fill="${main&&filled?'#e2f3ec':main?'#e6f5ee':'#ffffff'}" stroke="${main?(filled?'#1a7a62':'#3fae6a'):'#e3ece9'}" stroke-width="${main?4:3}"/>`+txt(536,y+58,h,36,C.ink,800)+(main?'':txt(660,y+58,n,32,C.ink,600))+`</g>`;
+     if(main&&!filled) g+=txt(660,y+58,'Disponible',32,'#2f9a5a',700);
+     if(main&&filled){const a=eo((t-1.15)/0.3); g+=`<g opacity="${a}" transform="translate(${(1-a)*-20},0)">`+txt(660,y+58,'Camila S.',34,C.ink,800)+`</g>`;}
+   });
+   s+=g;
+   if(t>=1.45) s+=scaleAt(`<g filter="url(#sh)"><rect x="740" y="650" width="440" height="70" rx="35" fill="#1a7a62"/></g>`+txt(960,696,'✓ Hora asignada a Camila',30,'#fff',700,'middle'),960,685,back((t-1.45)/0.35));
+   let p=t<2.45?PB:arcPos(PB,[window.VERT?960:520,340],(t-2.45)/0.55,90);
+   const k=(t>=1.15&&t<1.5)?1+0.12*Math.sin(cl((t-1.15)/0.35)*Math.PI):1;
+   s+=chip(p[0],p[1],filled?'camila':'free',k);
+   return s}},
+ climax:{dur:4,kick:'',lines:[''],noText:true,draw(t){
+   let s=`<rect x="0" y="0" width="1920" height="1080" fill="#fff8ee"/><rect x="0" y="0" width="1920" height="1080" fill="url(#warm)"/><circle cx="1700" cy="950" r="380" fill="${C.brand}" opacity=".06"/><ellipse cx="${520+(window.VERT?440:0)}" cy="824" rx="130" ry="16" fill="#1d2b29" opacity=".08"/>`;
+   const ex=(t>=0.4&&t<1.3)?Math.sin((t-0.4)/0.9*Math.PI)*6:0, VX=window.VERT?440:0;
+   s+=`<g transform="translate(${VX},${ex})">`+person({x:520,fy:820,shirt:'#f0a924',hair:'#5a3d2b',style:'long',mood:'happy',joy:t>=0.5,closed:t>=0.45&&t<1.05,phoneFront:true,look:0,nod:(t>=1.2&&t<2.0)?Math.sin((t-1.2)*7)*4:0,skin:'#f5d3b3'})+`</g>`;
+   for(let i=0;i<5;i++){const a=cl((t-0.8-i*0.15)/0.4)*(1-cl((t-2.6)/0.6)); const sx=420+VX+i*55, sy=360-((i*37)%60)-t*14; s+=`<path d="M${sx} ${sy} l5 9 l9 5 l-9 5 l-5 9 l-5 -9 l-9 -5 l9 -5 Z" fill="#ffd166" opacity="${0.8*a}"/>`;}
+   let p=[520+VX,340];
+   s+=chip(p[0],p[1],'camila',1);
+   if(window.VERT) return s;
+   const ap=(d)=>{const a=eo((t-d)/0.45); return `opacity="${a}" transform="translate(0,${(1-a)*24})"`};
+   s+=`<g ${ap(1.3)}>`+logoIcon(1060,250,110,(t-1.4)/0.5)+`</g>`;
+   s+=`<g ${ap(1.5)}>`+txt(1000,440,'Mi Hora,',104,C.ink,700)+`</g>`;
+   const w=tw('Tu Oportunidad.',104);
+   s+=`<g ${ap(1.75)}><rect x="996" y="520" width="${w+10}" height="44" fill="#f0a924" opacity=".55"/>`+txt(1000,560,'Tu Oportunidad.',104,C.ink,700)+`</g>`;
+   s+=`<g ${ap(2.3)}>`+txt(1004,650,'Una hora liberada a tiempo,',38,C.brand,600)+txt(1004,700,'una persona atendida.',38,C.brand,600)+`</g>`;
+   return s}},
+ more:{dur:2.5,kick:'',lines:[''],noText:true,draw(t){
+   let s=softBg();
+   const ap=(d)=>{const a=eo((t-d)/0.35); return `opacity="${a}" transform="translate(0,${(1-a)*24})"`};
+   const zoom=eo((t-2.0)/0.5);
+   s+=`<g opacity="${1-zoom}">`;
+   s+=`<g ${ap(0.05)}>`+txt(960,210,'¿Eso es todo?',84,C.ink,700,'middle')+`</g>`;
+   s+=`<g ${ap(0.55)}>`+txt(960,290,'Hay desafíos escondidos…',44,C.brand,600,'middle')+`</g>`;
+   s+=`</g>`;
+   const card=(cx,i,face)=>{const t0=0.75+i*0.12, a=eo((t-t0)/0.35), fl=cl((t-1.35-i*0.15)/0.35); const sx=Math.abs(Math.cos(fl*Math.PI)); const front=fl>=0.5;
+     const W=400,H=480, x=cx-W/2, y=380;
+     let g=`<g filter="url(#sh)"><rect x="${x}" y="${y}" width="${W}" height="${H}" rx="36" fill="${front?'#ffffff':'#1f8a70'}"/></g>`;
+     if(!front){ g+=`<rect x="${x+18}" y="${y+18}" width="${W-36}" height="${H-36}" rx="26" fill="none" stroke="#f0a924" stroke-width="4" stroke-dasharray="14 10"/>`+txt(cx,y+H/2+50,'?',170,'#f0c45c',800,'middle'); }
+     else { const pw=tw('BONUS',26,700)+50; g+=`<rect x="${cx-pw/2}" y="${y+40}" width="${pw}" height="46" rx="23" fill="#f0a924"/>`+txt(cx,y+72,'BONUS',26,C.ink,700,'middle')+`<text x="${cx}" y="${y+250}" text-anchor="middle" font-size="120">${face[0]}</text>`+txt(cx,y+350,face[1],40,C.ink,700,'middle')+txt(cx,y+400,face[2],30,'#6b7d79',600,'middle'); }
+     return `<g opacity="${a}" transform="translate(${cx},${y+H/2}) scale(${sx*(0.9+0.1*a)},${0.9+0.1*a}) translate(${-cx},${-(y+H/2)})">${g}</g>`};
+   const zc=(g)=>{const k=1+3.6*zoom*zoom, cx=lerp(740,960,zoom), cy=lerp(620,540,zoom); return `<g transform="translate(${cx},${cy}) scale(${k}) translate(-740,-620)">${g}</g>`};
+   s+=`<g opacity="${1-zoom}">`+card(1180,1,['🚑','Accidente masivo','Clasificación START'])+`</g>`;
+   s+=zc(card(740,0,['🚨','Urgencias','¿Quién va primero?']));
+   s+=veil(eo((t-2.25)/0.25),'#ffffff');
+   return s}},
+ teaserA:Object.assign({},_tA,{dur:3,kick:'MÁS DESAFÍOS POR DESCUBRIR',lines:['Urgencias'],draw(t){return _tA.draw(t*3.5/3)}}),
+ teaserB:{dur:3,kick:'MÁS DESAFÍOS POR DESCUBRIR',lines:['Accidente masivo · START'],draw(t){window.LITE=true; const r=OLD.bonus.draw(Math.min(5.9,1.0+t*1.65)); window.LITE=false; return r}},
+ core:{dur:3,kick:'',lines:[''],noText:true,draw(t){
+   let s=`<rect x="0" y="0" width="1920" height="1080" fill="#eef5f2"/><circle cx="190" cy="870" r="450" fill="${C.brand}" opacity=".08"/>`;
+   const a=eo((t-0.15)/0.4);
+   s+=`<g opacity="${a}">`+txt(960,500,'Si no puede asistir,',88,C.ink,700,'middle')+`<rect x="${960-tw('avise con tiempo.',88)/2-6}" y="574" width="${tw('avise con tiempo.',88)+12}" height="38" fill="#f0a924" opacity=".55"/>`+txt(960,605,'avise con tiempo.',88,C.ink,700,'middle')+`</g>`;
+   return s}},
+ play:{dur:5,kick:'',lines:[''],noText:true,draw(t){
+   let s=`<rect x="0" y="0" width="1920" height="1080" fill="#eef5f2"/><circle cx="190" cy="900" r="420" fill="${C.brand}" opacity=".07"/>`;
+   const ap=(d)=>{const a=eo((t-d)/0.4); return `opacity="${a}" transform="translate(0,${(1-a)*30})"`};
+   const pw=tw('PRODUCTO',26,700)+56;
+   s+=`<g ${ap(0)}><rect x="140" y="300" width="${pw}" height="50" rx="25" fill="${C.brand}"/>`+txt(140+pw/2,334,'PRODUCTO',26,'#fff',700,'middle')+`</g>`;
+   s+=`<g ${ap(0.1)}>`+txt(140,470,'¡Le toca',104,C.ink,700)+`</g><g ${ap(0.2)}><rect x="136" y="560" width="${tw('jugar!',104)+8}" height="38" fill="${C.gold}" opacity=".55"/>`+txt(140,592,'jugar!',104,C.ink,700)+`</g>`;
+   s+=`<g ${ap(0.5)}>`+txt(140,690,'Juego educativo en el navegador.',40,'#5e6e6b',600)+txt(140,744,'Sin instalar nada.',40,'#5e6e6b',600)+`</g>`;
+   const ph=(cx,cy,sc,rot,src,op)=>{const W=380,H=760, x=cx-W/2, y=cy-H/2;
+     return `<g opacity="${op}" transform="translate(${cx},${cy}) rotate(${rot}) scale(${sc}) translate(${-cx},${-cy})"><g filter="url(#sh)"><rect x="${x-10}" y="${y-10}" width="${W+20}" height="${H+20}" rx="48" fill="#2e3d3a"/></g>
+       <clipPath id="pp${Math.round(cx)}"><rect x="${x}" y="${y}" width="${W}" height="${H}" rx="40"/></clipPath><g clip-path="url(#pp${Math.round(cx)})"><rect x="${x}" y="${y}" width="${W}" height="${H}" fill="#fff"/>${src(x,y,W,H)}</g></g>`};
+   const im=(f)=>(x,y,W,H)=>`<image href="shots/${f}" x="${x}" y="${y}" width="${W}" height="${H}" preserveAspectRatio="xMidYMin slice"/>`;
+   const a=eo((t-0.1)/0.5);
+   s+=ph(1050,600,0.62,-7,im('d1_after.png'),0.55*a);
+   s+=ph(1750,600,0.62,7,im('bonus_modal.png'),0.55*a);
+   // centre phone: one switch only, at 2.6 s
+   const cen=(x,y,W,H)=>{const u=eo((t-2.6)/0.45); return `<image href="shots/title.png" x="${x}" y="${y-u*H}" width="${W}" height="${H}" preserveAspectRatio="xMidYMin slice"/><image href="shots/appt2.png" x="${x}" y="${y+(1-u)*H}" width="${W}" height="${H}" preserveAspectRatio="xMidYMin slice"/>`};
+   const k=0.94+0.06*eo(t/0.5);
+   s+=`<g opacity="${eo(t/0.4)}">`+ph(1410,545,1.12*k,0,cen,1)+`</g>`;
+   return s}},
+});
+Object.assign(CAMS,{
+ intro:[[0,1.0,960,540],[1.15,1.0,960,540],[1.7,1.55,1400,330],[2.45,1.55,1400,330],[2.95,1.0,960,540],[4.5,1.0,960,540]],
+ sting:[[0,1.0,960,540]],
+ bridge:[[0,1.18,930,480],[1.4,1.0,960,540],[2,1.0,960,540]],
+ day1:[[0,1.0,960,540],[2.0,1.03,980,530],[3.2,1.05,1080,520],[5,1.04,1080,530]],
+ jorge:[[0,1.0,960,540],[1.4,1.04,1080,520],[4,1.04,1080,520]],
+ cancel:[[0,1.0,960,540]], camila:[[0,1.0,960,540],[1.4,1.05,1200,520],[2.6,1.05,1200,520],[4,1.02,1000,540]],
+ assigned:[[0,1.0,960,540]], climax:[[0,1.0,960,540],[4,1.03,980,530]],
+ teaserA:[[0,1.0,960,540],[3,1.04,900,520]], teaserB:[[0,1.0,960,540],[3,1.04,860,540]],
+ core:[[0,1.0,960,540]], play:[[0,1.0,960,540]], outro:[[0,1.0,960,540]],
+});
+
+let CUR='intro';
+function render(t){
+  const sc=SC[CUR], dur=sc.dur;
+  DEFS=new Map();
+  NOW=t; const body=sc.draw(t);
+  const [cz,fx0,fy0]=camAt(CUR,t); const cfx=Math.min(Math.max(fx0,960/cz),1920-960/cz), cfy=Math.min(Math.max(fy0,540/cz),1080-540/cz);
+  $('sv').innerHTML=`<defs>${DEFS0}${SPDEF}${DESAT}<radialGradient id="warm" cx="30%" cy="40%" r="70%"><stop offset="0" stop-color="#ffd38a" stop-opacity=".28"/><stop offset="1" stop-color="#ffd38a" stop-opacity="0"/></radialGradient>${LOGO_DEFS}${[...DEFS.values()].join('')}</defs><g transform="translate(960,540) scale(${cz}) translate(${-cfx},${-cfy})">`+body+`</g>`;
+  // text
+  const T0=sc.tIn||0, T1=sc.tOut||(dur-0.25);
+  const place=(el,delay)=>{const u=t-delay-T0; let a=eo(u/0.35), dy=(1-a)*40; const v=(t-T1)/0.3;
+    if(v>0){a*=1-eo(v); dy-=eo(v)*30} if(u<0)a=0; el.style.opacity=a; el.style.transform=`translateY(${dy}px)`};
+  place($('k'),0); ['l0','l1','l2'].forEach((id,i)=>place($(id),0.1+0.08*i));
+  $('band').style.opacity=$('k').style.opacity;
+  // card
+  const ci=eo(t/0.4), co=t>dur-0.25?1-eo((t-(dur-0.25))/0.25):1;
+  $('card').style.opacity=1;
+  $('b1').style.transform=`translate(${Math.sin(t*0.4)*40}px,${Math.cos(t*0.3)*30}px)`;
+  $('b2').style.transform=`translate(${Math.cos(t*0.35)*50}px,${Math.sin(t*0.45)*30}px)`;
+}
+function setScene(n){CUR=n; const sc=Object.assign({},SC[n]); if(window.VERT) sc.noText=true; document.getElementById('band').style.display=sc.noText?'none':'block'; $('k').style.display=sc.noText?'none':'block'; $('l0').style.display=sc.noText?'none':'block'; $('kt').textContent=sc.kick; $('l0').innerHTML=sc.lines.join(' '); $('l1').textContent=sc.es||''; $('l1').style.display=sc.noText?'none':'block'; render(0)}
+window.setScene=setScene; window.render=render;
+</script></body></html>
